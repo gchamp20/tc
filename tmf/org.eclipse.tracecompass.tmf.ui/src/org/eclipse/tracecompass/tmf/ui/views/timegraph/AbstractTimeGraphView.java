@@ -109,8 +109,10 @@ import org.eclipse.tracecompass.internal.tmf.ui.Activator;
 import org.eclipse.tracecompass.internal.tmf.ui.markers.MarkerUtils;
 import org.eclipse.tracecompass.internal.tmf.ui.util.TimeGraphStyleUtil;
 import org.eclipse.tracecompass.internal.tmf.ui.views.timegraph.TimeEventFilterDialog;
+import org.eclipse.tracecompass.tmf.core.model.IFilterableDataModel;
 import org.eclipse.tracecompass.tmf.core.model.timegraph.IFilterProperty;
 import org.eclipse.tracecompass.tmf.core.resources.ITmfMarker;
+import org.eclipse.tracecompass.tmf.core.signal.TmfDataModelSelectedSignal;
 import org.eclipse.tracecompass.tmf.core.signal.TmfMarkerEventSourceUpdatedSignal;
 import org.eclipse.tracecompass.tmf.core.signal.TmfSelectionRangeUpdatedSignal;
 import org.eclipse.tracecompass.tmf.core.signal.TmfSignalHandler;
@@ -135,16 +137,19 @@ import org.eclipse.tracecompass.tmf.ui.views.ITmfPinnable;
 import org.eclipse.tracecompass.tmf.ui.views.ITmfTimeAligned;
 import org.eclipse.tracecompass.tmf.ui.views.SaveImageUtil;
 import org.eclipse.tracecompass.tmf.ui.views.TmfView;
+import org.eclipse.tracecompass.tmf.ui.views.timegraph.BaseDataProviderTimeGraphView.TraceEntry;
 import org.eclipse.tracecompass.tmf.ui.widgets.timegraph.ITimeGraphBookmarkListener;
 import org.eclipse.tracecompass.tmf.ui.widgets.timegraph.ITimeGraphContentProvider;
 import org.eclipse.tracecompass.tmf.ui.widgets.timegraph.ITimeGraphPresentationProvider;
 import org.eclipse.tracecompass.tmf.ui.widgets.timegraph.ITimeGraphPresentationProvider2;
 import org.eclipse.tracecompass.tmf.ui.widgets.timegraph.ITimeGraphRangeListener;
+import org.eclipse.tracecompass.tmf.ui.widgets.timegraph.ITimeGraphSelectionListener;
 import org.eclipse.tracecompass.tmf.ui.widgets.timegraph.ITimeGraphTimeListener;
 import org.eclipse.tracecompass.tmf.ui.widgets.timegraph.TimeGraphBookmarkEvent;
 import org.eclipse.tracecompass.tmf.ui.widgets.timegraph.TimeGraphContentProvider;
 import org.eclipse.tracecompass.tmf.ui.widgets.timegraph.TimeGraphPresentationProvider;
 import org.eclipse.tracecompass.tmf.ui.widgets.timegraph.TimeGraphRangeUpdateEvent;
+import org.eclipse.tracecompass.tmf.ui.widgets.timegraph.TimeGraphSelectionEvent;
 import org.eclipse.tracecompass.tmf.ui.widgets.timegraph.TimeGraphTimeEvent;
 import org.eclipse.tracecompass.tmf.ui.widgets.timegraph.TimeGraphViewer;
 import org.eclipse.tracecompass.tmf.ui.widgets.timegraph.model.ILinkEvent;
@@ -157,6 +162,7 @@ import org.eclipse.tracecompass.tmf.ui.widgets.timegraph.model.NullTimeEvent;
 import org.eclipse.tracecompass.tmf.ui.widgets.timegraph.model.TimeGraphEntry;
 import org.eclipse.tracecompass.tmf.ui.widgets.timegraph.model.TimeGraphEntry.Sampling;
 import org.eclipse.tracecompass.tmf.ui.widgets.timegraph.widgets.TimeGraphControl;
+import org.eclipse.tracecompass.tmf.ui.widgets.timegraph.widgets.Utils;
 import org.eclipse.tracecompass.tmf.ui.widgets.timegraph.widgets.Utils.TimeFormat;
 import org.eclipse.ui.IActionBars;
 import org.eclipse.ui.IPartListener;
@@ -367,6 +373,21 @@ public abstract class AbstractTimeGraphView extends TmfView implements ITmfTimeA
     private IContextService fContextService;
 
     private List<IContextActivation> fActiveContexts = new ArrayList<>();
+
+    /** Listener that handles a click on an entry in the FusedVM View */
+    private final ITimeGraphSelectionListener fMetadataSelectionListener = new ITimeGraphSelectionListener() {
+
+        @Override
+        public void selectionChanged(TimeGraphSelectionEvent event) {
+            ITimeGraphEntry entry = event.getSelection();
+            if (entry instanceof IFilterableDataModel) {
+                Multimap<@NonNull String, @NonNull String> metadata = ((IFilterableDataModel) entry).getMetadata();
+                if (!metadata.isEmpty()) {
+                    broadcast(new TmfDataModelSelectedSignal(AbstractTimeGraphView.this, metadata));
+                }
+            }
+        }
+    };
 
     // ------------------------------------------------------------------------
     // ------------------------------------------------------------------------
@@ -1178,6 +1199,7 @@ public abstract class AbstractTimeGraphView extends TmfView implements ITmfTimeA
         fTimeGraphViewer.setFilterContentProvider(fFilterContentProvider != null ? fFilterContentProvider : fTimeGraphContentProvider);
         fTimeGraphViewer.setFilterLabelProvider(fFilterLabelProvider);
         fTimeGraphViewer.setFilterColumns(fFilterColumns);
+        getTimeGraphViewer().addSelectionListener(fMetadataSelectionListener);
 
         ITimeGraphPresentationProvider presentationProvider = getPresentationProvider();
         fTimeGraphViewer.setTimeGraphProvider(presentationProvider);
@@ -2729,6 +2751,41 @@ public abstract class AbstractTimeGraphView extends TmfView implements ITmfTimeA
 
         @Override
         public void partInputChanged(IWorkbenchPartReference partRef) {
+        }
+    }
+
+    /**
+     * Set or remove the global regex filter value
+     *
+     * @param signal
+     *                   the signal carrying the regex value
+     * @since 4.1
+     */
+    @TmfSignalHandler
+    public void selectionChanged(TmfDataModelSelectedSignal signal) {
+        // Ignore signal from self
+        if (signal.getSource() == this) {
+            return;
+        }
+        Multimap<@NonNull String, @NonNull String> metadata = signal.getMetadata();
+        // See if the current selection intersects the metadata
+        ITimeGraphEntry selection = getTimeGraphViewer().getSelection();
+        if (selection instanceof IFilterableDataModel &&
+                IFilterableDataModel.compareMetadata(metadata, ((IFilterableDataModel)selection).getMetadata())) {
+            return;
+        }
+        // See if an entry intersects the metadata
+        List<TimeGraphEntry> traceEntries = getEntryList(getTrace());
+        if (traceEntries == null) {
+            return;
+        }
+        for (TraceEntry traceEntry : Iterables.filter(traceEntries, TraceEntry.class)) {
+            Iterable<TimeGraphEntry> unfiltered = Utils.flatten(traceEntry);
+            for (TimeGraphEntry entry : unfiltered) {
+                if (IFilterableDataModel.compareMetadata(metadata, entry.getMetadata())) {
+                    getTimeGraphViewer().setSelection(entry, true);
+                }
+            }
         }
     }
 
