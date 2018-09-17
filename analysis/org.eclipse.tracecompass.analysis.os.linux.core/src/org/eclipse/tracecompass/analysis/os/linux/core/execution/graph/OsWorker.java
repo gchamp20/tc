@@ -71,7 +71,7 @@ public class OsWorker implements IGraphWorker {
         if (tid == -1) {
             return Collections.emptyMap();
         }
-        return Collections.singletonMap("tid", String.valueOf(tid)); //$NON-NLS-1$
+        return Collections.singletonMap(Objects.requireNonNull(org.eclipse.tracecompass.analysis.os.linux.core.event.aspect.Messages.AspectName_Tid), String.valueOf(tid));
     }
 
     @SuppressWarnings("null")
@@ -82,7 +82,7 @@ public class OsWorker implements IGraphWorker {
             return Collections.emptyMap();
         }
         Map<String, String> workerInfo = new HashMap<>();
-        workerInfo.put("tid", String.valueOf(tid)); //$NON-NLS-1$
+        workerInfo.put(Objects.requireNonNull(org.eclipse.tracecompass.analysis.os.linux.core.event.aspect.Messages.AspectName_Tid), String.valueOf(tid));
         Optional<@Nullable KernelAnalysisModule> kam = TmfTraceManager.getInstance().getActiveTraceSet()
                 .stream()
                 .filter(trace -> trace.getHostId().equals(getHostId()))
