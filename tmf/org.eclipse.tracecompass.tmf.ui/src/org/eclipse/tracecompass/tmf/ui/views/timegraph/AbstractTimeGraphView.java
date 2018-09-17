@@ -376,6 +376,8 @@ public abstract class AbstractTimeGraphView extends TmfView implements ITmfTimeA
 
     private Collection<@NonNull String> fGlobalFilter = null;
 
+    private OverlayManagerExtension fOverlayManager;
+
     /** Listener that handles a click on an entry in the FusedVM View */
     private final ITimeGraphSelectionListener fMetadataSelectionListener = new ITimeGraphSelectionListener() {
 
@@ -642,6 +644,15 @@ public abstract class AbstractTimeGraphView extends TmfView implements ITmfTimeA
                         computedLinks.forEach(link -> link.setProperty(IFilterProperty.DIMMED, filterDialog.isFilterActive()));
                     }
                 }
+                for (Entry<org.eclipse.tracecompass.internal.tmf.ui.views.timegraph.ITimeGraphOverlay, @NonNull RGBA> overlay : fOverlayManager.getActiveOverlays().entrySet()) {
+                    Collection<ILinkEvent> links = overlay.getKey().getLinks(getZoomStartTime(), getZoomEndTime(), getResolution(), getMonitor());
+                    if (!links.isEmpty()) {
+                        if (computedLinks == null) {
+                            computedLinks = new ArrayList<>();
+                        }
+                        computedLinks.addAll(links);
+                    }
+                }
             }
             List<ILinkEvent> links = computedLinks;
             /* Refresh the view-specific markers when zooming */
@@ -649,6 +660,12 @@ public abstract class AbstractTimeGraphView extends TmfView implements ITmfTimeA
                 List<IMarkerEvent> markers = new ArrayList<>(getViewMarkerList(getZoomStartTime(), getZoomEndTime(), getResolution(), getMonitor()));
                 /* Refresh the trace-specific markers when zooming */
                 markers.addAll(getTraceMarkerList(getZoomStartTime(), getZoomEndTime(), getResolution(), getMonitor()));
+                for (Entry<org.eclipse.tracecompass.internal.tmf.ui.views.timegraph.ITimeGraphOverlay, @NonNull RGBA> overlay : fOverlayManager.getActiveOverlays().entrySet()) {
+                    Collection<IMarkerEvent> overlayMarkers = overlay.getKey().getMarkers(fEntries, getZoomStartTime(), getZoomEndTime(), overlay.getValue(), getResolution(), getMonitor());
+                    if (!overlayMarkers.isEmpty()) {
+                        markers.addAll(overlayMarkers);
+                    }
+                }
                 applyResults(() -> {
                     if (links != null) {
                         fTimeGraphViewer.setLinks(links);
@@ -1401,6 +1418,11 @@ public abstract class AbstractTimeGraphView extends TmfView implements ITmfTimeA
                 activateContextService();
             }
         });
+
+        fOverlayManager = new OverlayManagerExtension(this);
+        if (trace != null) {
+            fOverlayManager.refresh();
+        }
     }
 
     private void activateContextService() {
@@ -1692,6 +1714,10 @@ public abstract class AbstractTimeGraphView extends TmfView implements ITmfTimeA
             fViewContext.put(fTrace, new ViewContext(fCurrentSortColumn, fSortDirection, fTimeGraphViewer.getSelection(), fTimeGraphViewer.getAllCollapsedElements()));
         }
         fTrace = trace;
+        OverlayManagerExtension overlayManager = fOverlayManager;
+        if (overlayManager != null) {
+            fOverlayManager.refresh();
+        }
 
         TraceCompassLogUtils.traceInstant(LOGGER, Level.FINE, "TimeGraphView:LoadingTrace", "trace", trace.getName(), "viewId", getViewId()); //$NON-NLS-1$ //$NON-NLS-2$//$NON-NLS-3$
 
