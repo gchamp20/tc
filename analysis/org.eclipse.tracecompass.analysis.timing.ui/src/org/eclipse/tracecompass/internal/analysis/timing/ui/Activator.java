@@ -13,6 +13,8 @@ import org.eclipse.core.runtime.IStatus;
 import org.eclipse.core.runtime.Status;
 import org.eclipse.jface.resource.ImageDescriptor;
 import org.eclipse.swt.graphics.Image;
+import org.eclipse.tracecompass.internal.analysis.timing.ui.views.timegraph.overlay.SegmentStoreOverlayProvider;
+import org.eclipse.tracecompass.tmf.ui.views.timegraph.OverlayManager;
 import org.eclipse.ui.plugin.AbstractUIPlugin;
 import org.osgi.framework.BundleContext;
 
@@ -37,6 +39,7 @@ public class Activator extends AbstractUIPlugin {
     public void start(BundleContext context) throws Exception {
         super.start(context);
         plugin = this;
+        OverlayManager.addOverlayProvider(new SegmentStoreOverlayProvider());
     }
 
     @Override
