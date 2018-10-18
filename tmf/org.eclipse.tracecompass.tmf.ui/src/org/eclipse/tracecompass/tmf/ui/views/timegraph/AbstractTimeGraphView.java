@@ -39,6 +39,7 @@ import java.util.logging.Logger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.regex.PatternSyntaxException;
+import java.util.stream.Collector;
 
 import org.eclipse.core.filesystem.EFS;
 import org.eclipse.core.filesystem.IFileStore;
@@ -110,6 +111,7 @@ import org.eclipse.tracecompass.internal.tmf.ui.Activator;
 import org.eclipse.tracecompass.internal.tmf.ui.markers.MarkerUtils;
 import org.eclipse.tracecompass.internal.tmf.ui.util.TimeGraphStyleUtil;
 import org.eclipse.tracecompass.internal.tmf.ui.views.timegraph.TimeEventFilterDialog;
+import org.eclipse.tracecompass.internal.tmf.ui.views.timegraph.TimeGraphOverlayUtils;
 import org.eclipse.tracecompass.tmf.core.model.IFilterableDataModel;
 import org.eclipse.tracecompass.tmf.core.model.timegraph.IFilterProperty;
 import org.eclipse.tracecompass.tmf.core.resources.ITmfMarker;
@@ -663,7 +665,26 @@ public abstract class AbstractTimeGraphView extends TmfView implements ITmfTimeA
                 for (Entry<org.eclipse.tracecompass.internal.tmf.ui.views.timegraph.ITimeGraphOverlay, @NonNull RGBA> overlay : fOverlayManager.getActiveOverlays().entrySet()) {
                     Collection<IMarkerEvent> overlayMarkers = overlay.getKey().getMarkers(fEntries, getZoomStartTime(), getZoomEndTime(), overlay.getValue(), getResolution(), getMonitor());
                     if (!overlayMarkers.isEmpty()) {
-                        markers.addAll(overlayMarkers);
+
+                        /* Group the markers per entry in to map */
+                        Multimap<ITimeGraphEntry, IMarkerEvent> markersMap = overlayMarkers.stream()
+                            .collect(
+                            Collector.of(
+                                    () -> {
+                                        Multimap<ITimeGraphEntry, IMarkerEvent> m = HashMultimap.create();
+                                        return m;
+                                    },
+                                    (result, elem) -> result.put(elem.getEntry(), elem),
+                                    (result1, result2) -> {
+                                        result1.putAll(result2);
+                                        return result1;
+                                    },
+                                    (result) -> result
+                             ));
+
+                        /* Cluster the markers for each entry */
+                        markers.addAll(TimeGraphOverlayUtils.clusterMarkers(markersMap,
+                                getZoomStartTime(), getZoomEndTime(), getResolution(), overlay.getKey().getName(), overlay.getValue()));
                     }
                 }
                 applyResults(() -> {
