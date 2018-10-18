@@ -29,6 +29,7 @@ import org.eclipse.tracecompass.tmf.core.response.TmfModelResponse;
 import org.eclipse.tracecompass.tmf.ui.views.timegraph.BaseDataProviderTimeGraphView;
 import org.eclipse.tracecompass.tmf.ui.widgets.timegraph.StateItem;
 import org.eclipse.tracecompass.tmf.ui.widgets.timegraph.TimeGraphPresentationProvider;
+import org.eclipse.tracecompass.tmf.ui.widgets.timegraph.model.ClusterMarkerEvent;
 import org.eclipse.tracecompass.tmf.ui.widgets.timegraph.model.ILinkEvent;
 import org.eclipse.tracecompass.tmf.ui.widgets.timegraph.model.ITimeEvent;
 import org.eclipse.tracecompass.tmf.ui.widgets.timegraph.model.ITimeEventStyleStrings;
@@ -157,5 +158,14 @@ public class ControlFlowPresentationProvider extends TimeGraphPresentationProvid
         }
 
         return retMap;
+    }
+
+    @Override
+    public Map<String, Object> getSpecificEventStyle(ITimeEvent event) {
+        if (event instanceof ClusterMarkerEvent) {
+            ClusterMarkerEvent clusterEvent = (ClusterMarkerEvent)event;
+            return clusterEvent.getSpecificEventStyle();
+        }
+        return Collections.emptyMap();
     }
 }
