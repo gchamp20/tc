@@ -23,6 +23,8 @@ import org.eclipse.core.runtime.IProgressMonitor;
 import org.eclipse.jdt.annotation.NonNull;
 import org.eclipse.swt.graphics.RGBA;
 import org.eclipse.tracecompass.analysis.timing.core.segmentstore.ISegmentStoreProvider;
+import org.eclipse.tracecompass.datastore.core.interval.IHTInterval;
+import org.eclipse.tracecompass.datastore.core.serialization.ISafeByteBufferWriter;
 import org.eclipse.tracecompass.internal.tmf.ui.views.timegraph.ITimeGraphOverlay;
 import org.eclipse.tracecompass.segmentstore.core.ISegment;
 import org.eclipse.tracecompass.segmentstore.core.ISegmentStore;
@@ -104,8 +106,8 @@ public class SegmentStoreOverlay implements ITimeGraphOverlay {
             return Collections.emptyList();
         }
 
-        // Now build the markers
         List<IMarkerEvent> markers = new ArrayList<>();
+
         for (ISegment segment : segmentStore.getIntersectingElements(startTime, endTime)) {
             Multimap<String, String> resolvedAspects = HashMultimap.create();
             for (ISegmentAspect aspect : markedAspects) {
@@ -118,6 +120,7 @@ public class SegmentStoreOverlay implements ITimeGraphOverlay {
                 }
             }
         }
+
         return markers;
     }
 
@@ -126,4 +129,66 @@ public class SegmentStoreOverlay implements ITimeGraphOverlay {
         return fName;
     }
 
+    class MarkerInterval implements IHTInterval {
+
+        private List<IMarkerEvent> fMarkers;
+        private long fStart;
+        private long fEnd;
+
+        private long fRollingAverage;
+
+        public MarkerInterval(long start, long end, IMarkerEvent m) {
+            fStart = start;
+            fEnd = end;
+            fRollingAverage = Math.floorDiv(m.getTime() + m.getTime() + m.getDuration(), 2);
+            fMarkers = new ArrayList<>();
+            fMarkers.add(m);
+        }
+
+        public long getCenter() {
+            return Math.floorDiv(fStart, fEnd);
+        }
+
+        @Override
+        public long getStart() {
+            return fStart;
+        }
+
+        @Override
+        public long getEnd() {
+            return fEnd;
+        }
+
+        public void addMarker(IMarkerEvent marker) {
+            fMarkers.add(marker);
+            long markerCenter = Math.floorDiv(marker.getTime() + marker.getTime() + marker.getDuration(), 2);
+            fRollingAverage = fRollingAverage + Math.floorDiv(markerCenter - fRollingAverage, fMarkers.size());
+        }
+
+        public List<IMarkerEvent> getMarkers() {
+            return fMarkers;
+        }
+
+        public long getMarkerCenter() {
+            return fRollingAverage;
+        }
+
+        @Override
+        /**
+         * @return
+         *      This class is not meant to be serialized, so we return 0.
+         */
+        public int getSizeOnDisk() {
+            return 0;
+        }
+
+        @Override
+        /**
+         * This class is not meant to be serialized, so nothing is done.
+         */
+        public void writeSegment(ISafeByteBufferWriter buffer) {
+        }
+    }
 }
+
+

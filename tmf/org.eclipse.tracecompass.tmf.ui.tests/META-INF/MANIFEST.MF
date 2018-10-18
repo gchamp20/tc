@@ -44,5 +44,7 @@ Export-Package: org.eclipse.tracecompass.tmf.ui.tests,
  org.eclipse.tracecompass.tmf.ui.widgets.timegraph.test.stub.model,
  org.eclipse.tracecompass.tmf.ui.widgets.timegraph.test.stub.views
 Bundle-Activator: org.eclipse.tracecompass.tmf.ui.tests.TmfUITestPlugin
-Import-Package: com.google.common.collect
+Import-Package: com.google.common.collect,
+ org.eclipse.tracecompass.datastore.core.interval,
+ org.eclipse.tracecompass.datastore.core.serialization
 Automatic-Module-Name: org.eclipse.tracecompass.tmf.ui.tests
