@@ -14,6 +14,7 @@
 package org.eclipse.tracecompass.internal.analysis.os.linux.ui.views.controlflow;
 
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -25,10 +26,13 @@ import org.eclipse.tracecompass.internal.analysis.os.linux.ui.registry.LinuxStyl
 import org.eclipse.tracecompass.tmf.core.model.filters.SelectionTimeQueryFilter;
 import org.eclipse.tracecompass.tmf.core.model.timegraph.ITimeGraphDataProvider;
 import org.eclipse.tracecompass.tmf.core.model.timegraph.TimeGraphEntryModel;
+import org.eclipse.tracecompass.tmf.core.presentation.IYAppearance;
 import org.eclipse.tracecompass.tmf.core.response.TmfModelResponse;
+import org.eclipse.tracecompass.tmf.ui.colors.RGBAUtil;
 import org.eclipse.tracecompass.tmf.ui.views.timegraph.BaseDataProviderTimeGraphView;
 import org.eclipse.tracecompass.tmf.ui.widgets.timegraph.StateItem;
 import org.eclipse.tracecompass.tmf.ui.widgets.timegraph.TimeGraphPresentationProvider;
+import org.eclipse.tracecompass.tmf.ui.widgets.timegraph.model.ClusterMarkerEvent;
 import org.eclipse.tracecompass.tmf.ui.widgets.timegraph.model.ILinkEvent;
 import org.eclipse.tracecompass.tmf.ui.widgets.timegraph.model.ITimeEvent;
 import org.eclipse.tracecompass.tmf.ui.widgets.timegraph.model.ITimeEventStyleStrings;
@@ -157,5 +161,17 @@ public class ControlFlowPresentationProvider extends TimeGraphPresentationProvid
         }
 
         return retMap;
+    }
+
+    @Override
+    public Map<String, Object> getSpecificEventStyle(ITimeEvent event) {
+        Map<String, Object> styleMap = new HashMap<>(super.getSpecificEventStyle(event));
+        if (event instanceof ClusterMarkerEvent) {
+            ClusterMarkerEvent clusterEvent = (ClusterMarkerEvent)event;
+            styleMap.put(ITimeEventStyleStrings.symbolStyle(), IYAppearance.SymbolStyle.DIAMOND);
+            styleMap.put(ITimeEventStyleStrings.fillColor(), RGBAUtil.fromRGBA(clusterEvent.getColor()) | 0xFF);
+            styleMap.put(ITimeEventStyleStrings.heightFactor(), 0.25f); // Should probably be user configurable
+        }
+        return styleMap;
     }
 }
