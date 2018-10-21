@@ -2230,7 +2230,7 @@ public class TimeGraphControl extends TimeGraphBaseControl
         if (label != null && marker.getEntry() != null) {
             label = label.substring(0, Math.min(label.indexOf('\n') != -1 ? label.indexOf('\n') : label.length(), MAX_LABEL_LENGTH));
             gc.setForeground(color);
-            Utils.drawText(gc, label, rect.x - gc.textExtent(label).x, rect.y, true);
+            Utils.drawText(gc, label, rect.x - gc.textExtent(label).x - 5, rect.y + 5, true);
         }
     }
 

@@ -139,6 +139,7 @@ public class SegmentStoreOverlay implements ITimeGraphOverlay {
 
         boolean movedSomething = true;
         boolean firstIter = true;
+        boolean hideAll = (resolution > 80000);
         synchronized(segmentStore) {
         while (movedSomething) {
             if (!firstIter) {
@@ -204,12 +205,12 @@ public class SegmentStoreOverlay implements ITimeGraphOverlay {
             for (ClusterHolder cl : entry.getValue()) {
                 List<ISegment> l = cl.list;
                 Long center = cl.center;
-                if (l.size() == 1) {
+                if (l.size() == 1 && !hideAll) {
                     ISegment segment = l.get(0);
                     markers.add(new MarkerEvent(entry.getKey(), segment.getStart(), segment.getLength(), getName(), color, (segment instanceof INamedSegment) ? ((INamedSegment) segment).getName() : "", true));
                 }
-                else if (l.size() > 1) {
-                    markers.add(new MarkerEvent(entry.getKey(), center, 1, getName(), color, "", true)); //$NON-NLS-1$
+                else if (l.size() > 1 || (l.size() == 1 && hideAll)) {
+                    markers.add(new MarkerEvent(entry.getKey(), center, 0, getName(), color, "", true)); //$NON-NLS-1$
                 }
             }
         }
