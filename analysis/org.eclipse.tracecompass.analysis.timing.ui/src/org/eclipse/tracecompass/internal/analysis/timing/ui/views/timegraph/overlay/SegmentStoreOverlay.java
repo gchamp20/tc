@@ -64,17 +64,6 @@ public class SegmentStoreOverlay implements ITimeGraphOverlay {
         return Collections.emptyList();
     }
 
-    private static class ClusterHolder
-    {
-        public List<ISegment> list;
-        public Long center;
-
-        public ClusterHolder() {
-            list = new ArrayList<>();
-            center = 0L;
-        }
-    }
-
     @Override
     public @NonNull Collection<IMarkerEvent> getMarkers(Collection<TimeGraphEntry> entries, long startTime, long endTime, RGBA color, long resolution, @NonNull IProgressMonitor monitor) {
         ISegmentStore<ISegment> segmentStore = fSsProvider.getSegmentStore();
@@ -118,105 +107,12 @@ public class SegmentStoreOverlay implements ITimeGraphOverlay {
             endInter = Math.max(endInter, e.getEndTime());
         }
 
-        // Now build the markers
+        /* Now build the markers per entry
+         * O(|segmentStore| * (|markedAspects| + |markableEntries|))
+         */
         List<IMarkerEvent> markers = new ArrayList<>();
-        Map<TimeGraphEntry, List<ClusterHolder>> clusters = new HashMap<>();
-        Map<ISegment, ClusterHolder> crossrefMap = new HashMap<>();
 
-        int NUMBER_CLUSTER = 35;
-
-        long interval = Math.floorDiv((endTime - startTime), NUMBER_CLUSTER);
-        for (TimeGraphEntry t : markableEntries.keySet()) {
-            List<ClusterHolder> l = new ArrayList<>();
-            for (int i = 0; i < NUMBER_CLUSTER; i++) {
-                Long center = startTime + i * interval;
-                ClusterHolder cl = new ClusterHolder();
-                cl.center = center;
-                l.add(cl);
-            }
-            clusters.put(t, l);
-        }
-
-        boolean movedSomething = true;
-        boolean firstIter = true;
-        boolean hideAll = (resolution > 80000);
-        synchronized(segmentStore) {
-        while (movedSomething) {
-            if (!firstIter) {
-                movedSomething = false;
-            } else {
-                firstIter = false;
-            }
-            for (ISegment segment : segmentStore.getIntersectingElements(startTime, endTime)) {
-                Multimap<String, String> resolvedAspects = HashMultimap.create();
-                for (ISegmentAspect aspect : markedAspects) {
-                    resolvedAspects.put(aspect.getName(), String.valueOf(aspect.resolve(segment)));
-                }
-                for (Entry<TimeGraphEntry, Multimap<String, String>> entry : markableEntries.entrySet()) {
-                    if (IFilterableDataModel.compareMetadata(resolvedAspects, entry.getValue())) {
-                        List<ClusterHolder> l = clusters.get(entry.getKey());
-                        if (l != null) {
-                            ClusterHolder pos = null;
-                            Long diff_min = Long.MAX_VALUE;
-                            for (ClusterHolder cl : l) {
-                                Long center = cl.center;
-                                Long diff = Math.abs(center - segment.getStart());
-                                if (diff < diff_min) {
-                                    pos = cl;
-                                    diff_min = diff;
-                                }
-                            }
-
-                            if (pos != null) {
-                                if (crossrefMap.containsKey(segment)) {
-                                    ClusterHolder old_pos = crossrefMap.get(segment);
-                                    if (old_pos != null && old_pos != pos) {
-                                        old_pos.list.remove(segment);
-                                        crossrefMap.put(segment, pos);
-                                        movedSomething = true;
-                                        pos.list.add(segment);
-                                    }
-                                } else {
-                                    crossrefMap.put(segment, pos);
-                                    pos.list.add(segment);
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-
-            for (Entry<TimeGraphEntry, List<ClusterHolder>> entry : clusters.entrySet()) {
-                for (ClusterHolder cl : entry.getValue()) {
-                    Long meanCluster = 0L;
-                    if (cl.list.size() > 0) {
-                        meanCluster = 0L;
-                        for (ISegment s : cl.list) {
-                            meanCluster += s.getStart();
-                        }
-                        meanCluster = Math.floorDiv(meanCluster, cl.list.size());
-                        cl.center = meanCluster;
-                    }
-                }
-            }
-        }
-
-        for (Entry<TimeGraphEntry, List<ClusterHolder>> entry : clusters.entrySet()) {
-            for (ClusterHolder cl : entry.getValue()) {
-                List<ISegment> l = cl.list;
-                Long center = cl.center;
-                if (l.size() == 1 && !hideAll) {
-                    ISegment segment = l.get(0);
-                    markers.add(new MarkerEvent(entry.getKey(), segment.getStart(), segment.getLength(), getName(), color, (segment instanceof INamedSegment) ? ((INamedSegment) segment).getName() : "", true));
-                }
-                else if (l.size() > 1 || (l.size() == 1 && hideAll)) {
-                    markers.add(new MarkerEvent(entry.getKey(), center, 0, getName(), color, "", true)); //$NON-NLS-1$
-                }
-            }
-        }
-        }
-
-        /*for (ISegment segment : segmentStore.getIntersectingElements(startTime, endTime)) {
+        for (ISegment segment : segmentStore.getIntersectingElements(startTime, endTime)) {
             Multimap<String, String> resolvedAspects = HashMultimap.create();
             for (ISegmentAspect aspect : markedAspects) {
                 resolvedAspects.put(aspect.getName(), String.valueOf(aspect.resolve(segment)));
@@ -227,7 +123,27 @@ public class SegmentStoreOverlay implements ITimeGraphOverlay {
                     markers.add(new MarkerEvent(entry.getKey(), segment.getStart(), segment.getLength(), getName(), color, (segment instanceof INamedSegment) ? ((INamedSegment) segment).getName() : "", true));
                 }
             }
-        } */
+        }
+
+        /*
+         * Now cluster the markers.
+         *
+         * Cost: O(m * I)
+         *      where m is number of markers and I number of intervals.
+         *
+         * The algorithm is as follow:
+         *
+         * For each marker m in markers: - 0(m)
+         *      If center of m falls in one or more interval - 0(log|I|)
+         *          Add m to closest interval - 0(1) (worst O(|I|))
+         *      Else:
+         *          Create interval of length L centered at center of m - 0(log|I|)
+         *
+         * For each marker m in markers - 0(m)
+         *      If center of m is closer to interval_i than its current interval O(I)
+         *          Move m to interval_i
+         */
+
         return markers;
     }
 
