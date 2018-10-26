@@ -9,6 +9,7 @@
 
 package org.eclipse.tracecompass.tmf.core.util;
 
+import java.util.ArrayList;
 import java.util.List;
 import org.eclipse.jdt.annotation.Nullable;
 
@@ -20,7 +21,7 @@ import org.eclipse.jdt.annotation.Nullable;
  * bound of the end intervals in its subtree.
  *
  * @author Guillaume Champagne
- * @param <T> Value of the nodes
+ * @param <T> Type of the nodes' value
  * @since 4.2
  */
 public class IntervalTree<T extends IInterval> {
@@ -31,7 +32,7 @@ public class IntervalTree<T extends IInterval> {
 
     private @Nullable IntervalTree<T> fLeft;
     private @Nullable IntervalTree<T> fRight;
-    private IInterval fOriginalInterval;
+    private T fOriginalInterval;
     private long fUpperBound;
 
     // ------------------------------------------------------------------------
@@ -43,7 +44,7 @@ public class IntervalTree<T extends IInterval> {
      * @param interval
      *      The original interval for this tree.
      */
-    public IntervalTree(IInterval interval) {
+    public IntervalTree(T interval) {
         fOriginalInterval = interval;
         fLeft = null;
         fRight = null;
@@ -63,7 +64,7 @@ public class IntervalTree<T extends IInterval> {
      *      The interval to add
      */
     public void insert(T interval) {
-        put(new IntervalTree<T>(interval));
+        put(new IntervalTree<>(interval));
     }
 
     /**
@@ -74,23 +75,9 @@ public class IntervalTree<T extends IInterval> {
      *          A List (possibly empty) of intersecting intervals.
      */
     public List<T> getIntersections(long point) {
-        return null;
-    }
-
-    /**
-     * @return
-     *      The left (smaller start point) subtree.
-     */
-    public @Nullable IntervalTree<T> getLeftChild() {
-        return fLeft;
-    }
-
-    /**
-     * @return
-     *      The right (bigger start point) subtree.
-     */
-    public @Nullable IntervalTree<T> getRightChild() {
-        return fRight;
+        List<T> results = new ArrayList<>();
+        find(results, point);
+        return results;
     }
 
     /**
@@ -122,7 +109,7 @@ public class IntervalTree<T extends IInterval> {
             setUpperBound(node.getUpperBound());
         }
 
-        if (node.getStart() < getStart()) {
+        if (node.getStart() >= getStart()) {
             if (fRight == null) {
                 fRight = node;
             } else if (fRight != null){
@@ -134,6 +121,42 @@ public class IntervalTree<T extends IInterval> {
             } else if (fLeft != null) {
                 fLeft.put(node);
             }
+        }
+    }
+
+    /**
+     *
+     * @param results
+     *          List of intersecting intervals
+     * @param point
+     *          The point to look for
+     */
+    protected void find(List<T> results, long point) {
+        if (point > getUpperBound()) {
+            return;
+        }
+
+        if (point > getStart()) {
+            if (point <= fOriginalInterval.getEnd()) {
+                results.add(fOriginalInterval);
+            }
+
+            if (fRight != null) {
+                fRight.find(results, point);
+            }
+        } else if (point == getStart()) {
+            results.add(fOriginalInterval);
+
+            if (fLeft != null && point <= fLeft.getUpperBound()) {
+                fLeft.find(results, point);
+            }
+
+            if (fRight != null) {
+                fRight.find(results,  point);
+            }
+        }
+        else if (point < getStart() && fLeft != null) {
+            fLeft.find(results, point);
         }
     }
 

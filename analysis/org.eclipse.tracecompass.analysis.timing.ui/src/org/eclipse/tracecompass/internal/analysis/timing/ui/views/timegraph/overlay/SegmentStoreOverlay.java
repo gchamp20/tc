@@ -29,6 +29,8 @@ import org.eclipse.tracecompass.segmentstore.core.segment.interfaces.INamedSegme
 import org.eclipse.tracecompass.tmf.core.analysis.IAnalysisModule;
 import org.eclipse.tracecompass.tmf.core.model.IFilterableDataModel;
 import org.eclipse.tracecompass.tmf.core.segment.ISegmentAspect;
+import org.eclipse.tracecompass.tmf.core.util.IInterval;
+import org.eclipse.tracecompass.tmf.core.util.IntervalTree;
 import org.eclipse.tracecompass.tmf.ui.views.timegraph.ITimeGraphOverlay;
 import org.eclipse.tracecompass.tmf.ui.widgets.timegraph.model.ILinkEvent;
 import org.eclipse.tracecompass.tmf.ui.widgets.timegraph.model.IMarkerEvent;
@@ -110,7 +112,9 @@ public class SegmentStoreOverlay implements ITimeGraphOverlay {
         /* Now build the markers per entry
          * O(|segmentStore| * (|markedAspects| + |markableEntries|))
          */
-        List<IMarkerEvent> markers = new ArrayList<>();
+        // List<IMarkerEvent> markers = new ArrayList<>();
+
+        Map<TimeGraphEntry, List<IMarkerEvent>> markerMap = new HashMap<>();
 
         for (ISegment segment : segmentStore.getIntersectingElements(startTime, endTime)) {
             Multimap<String, String> resolvedAspects = HashMultimap.create();
@@ -120,7 +124,16 @@ public class SegmentStoreOverlay implements ITimeGraphOverlay {
             for (Entry<TimeGraphEntry, Multimap<String, String>> entry : markableEntries.entrySet()) {
                 if (IFilterableDataModel.compareMetadata(resolvedAspects, entry.getValue())) {
                     // Create a marker
+                    List<IMarkerEvent> markers;
+                    if (markerMap.containsKey(entry.getKey())) {
+                        markers = markerMap.get(entry.getKey());
+                    } else {
+                        markers = new ArrayList<>();
+                        markerMap.put(entry.getKey(), markers);
+                    }
+
                     markers.add(new MarkerEvent(entry.getKey(), segment.getStart(), segment.getLength(), getName(), color, (segment instanceof INamedSegment) ? ((INamedSegment) segment).getName() : "", true));
+                    // markers.add(new MarkerEvent(entry.getKey(), segment.getStart(), segment.getLength(), getName(), color, (segment instanceof INamedSegment) ? ((INamedSegment) segment).getName() : "", true));
                 }
             }
         }
@@ -144,12 +157,76 @@ public class SegmentStoreOverlay implements ITimeGraphOverlay {
          *          Move m to interval_i
          */
 
-        return markers;
+        long L = 50;
+
+        IntervalTree<MarkerInterval> root;
+        for (Entry<TimeGraphEntry, List<IMarkerEvent>> entry : markerMap.entrySet()) {
+            List<IMarkerEvent> markers = entry.getValue();
+            IMarkerEvent m = markers.get(0);
+            long center = Math.floorDiv(m.getTime() + (m.getTime() + m.getDuration()), 2);
+            root = new IntervalTree<>(new MarkerInterval(center - L, center + L, m));
+
+            for (int i = 1; i < markers.size(); i++) {
+
+                m = markers.get(i);
+                center = Math.floorDiv(m.getTime() + (m.getTime() + m.getDuration()), 2);
+
+                List<MarkerInterval> intervals = root.getIntersections(center);
+                if (intervals.size() > 0) {
+                    long minDist = Long.MAX_VALUE;
+                    MarkerInterval position;
+                    for (MarkerInterval interval : intervals) {
+                        long dist = Math.abs(center - interval.getCenter());
+                        if (dist < minDist) {
+                            minDist = dist;
+                            position = interval;
+                        }
+                    }
+                    position.addMarker(m);
+                }
+                else {
+                    root.insert(new MarkerInterval(center - L, center + L, m));
+                }
+            }
+
+        }
+
     }
 
     @Override
     public String getName() {
         return fName;
     }
+}
 
+class MarkerInterval implements IInterval {
+
+    private List<IMarkerEvent> fMarkers;
+    private long fStart;
+    private long fEnd;
+
+    public MarkerInterval(long start, long end, IMarkerEvent m) {
+        fStart = start;
+        fEnd = end;
+        fMarkers = new ArrayList<>();
+        fMarkers.add(m);
+    }
+
+    @Override
+    public long getStart() {
+        return fStart;
+    }
+
+    @Override
+    public long getEnd() {
+        return fEnd;
+    }
+
+    public void addMarker(IMarkerEvent marker) {
+        fMarkers.add(marker);
+    }
+
+    public boolean removeMarker(IMarkerEvent marker) {
+        return fMarkers.remove(marker);
+    }
 }
