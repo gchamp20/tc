@@ -13,6 +13,8 @@ import java.util.ArrayList;
 import java.util.List;
 import org.eclipse.jdt.annotation.Nullable;
 
+import com.google.common.collect.ImmutableList;
+
 /**
  * Generic "Augmented interval tree" data structure.
  *
@@ -32,7 +34,7 @@ public class IntervalTree<T extends IInterval> {
 
     private @Nullable IntervalTree<T> fLeft;
     private @Nullable IntervalTree<T> fRight;
-    private T fOriginalInterval;
+    private final T fOriginalInterval;
     private long fUpperBound;
 
     // ------------------------------------------------------------------------
@@ -96,6 +98,16 @@ public class IntervalTree<T extends IInterval> {
         return fOriginalInterval.getStart();
     }
 
+    /**
+     * @return
+     *      A list of nodes values in no particular order.
+     */
+    public List<T> getNodeValues() {
+        ImmutableList.Builder<T> builder = new ImmutableList.Builder<>();
+        this.walkTree(builder);
+        return builder.build();
+    }
+
     // ------------------------------------------------------------------------
     // Protected Methods
     // ------------------------------------------------------------------------
@@ -157,6 +169,22 @@ public class IntervalTree<T extends IInterval> {
         }
         else if (point < getStart() && fLeft != null) {
             fLeft.find(results, point);
+        }
+    }
+
+    /**
+     * @param builder
+     *      Builder that receives the nodes value.
+     */
+    protected void walkTree(ImmutableList.Builder<T> builder) {
+        builder.add(fOriginalInterval);
+
+        if (fLeft != null) {
+            fLeft.walkTree(builder);
+        }
+
+        if (fRight != null) {
+            fRight.walkTree(builder);
         }
     }
 

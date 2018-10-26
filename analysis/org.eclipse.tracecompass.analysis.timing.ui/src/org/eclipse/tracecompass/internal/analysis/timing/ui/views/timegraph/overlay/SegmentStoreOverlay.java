@@ -112,8 +112,6 @@ public class SegmentStoreOverlay implements ITimeGraphOverlay {
         /* Now build the markers per entry
          * O(|segmentStore| * (|markedAspects| + |markableEntries|))
          */
-        // List<IMarkerEvent> markers = new ArrayList<>();
-
         Map<TimeGraphEntry, List<IMarkerEvent>> markerMap = new HashMap<>();
 
         for (ISegment segment : segmentStore.getIntersectingElements(startTime, endTime)) {
@@ -124,15 +122,12 @@ public class SegmentStoreOverlay implements ITimeGraphOverlay {
             for (Entry<TimeGraphEntry, Multimap<String, String>> entry : markableEntries.entrySet()) {
                 if (IFilterableDataModel.compareMetadata(resolvedAspects, entry.getValue())) {
                     // Create a marker
-                    List<IMarkerEvent> markers;
-                    if (markerMap.containsKey(entry.getKey())) {
-                        markers = markerMap.get(entry.getKey());
-                    } else {
-                        markers = new ArrayList<>();
+                    MarkerEvent m = new MarkerEvent(entry.getKey(), segment.getStart(), segment.getLength(), getName(), color, (segment instanceof INamedSegment) ? ((INamedSegment) segment).getName() : "", true);
+                    List<IMarkerEvent> markers = markerMap.getOrDefault(entry.getKey(), new ArrayList<>());
+                    markers.add(m);
+                    if (!markerMap.containsKey(entry.getKey())) {
                         markerMap.put(entry.getKey(), markers);
                     }
-
-                    markers.add(new MarkerEvent(entry.getKey(), segment.getStart(), segment.getLength(), getName(), color, (segment instanceof INamedSegment) ? ((INamedSegment) segment).getName() : "", true));
                     // markers.add(new MarkerEvent(entry.getKey(), segment.getStart(), segment.getLength(), getName(), color, (segment instanceof INamedSegment) ? ((INamedSegment) segment).getName() : "", true));
                 }
             }
@@ -157,24 +152,25 @@ public class SegmentStoreOverlay implements ITimeGraphOverlay {
          *          Move m to interval_i
          */
 
-        long L = 50;
+        long L = Math.floorDiv(endTime - startTime, 20);
 
+        List<IMarkerEvent>  outputMarkers = new ArrayList<>();
         IntervalTree<MarkerInterval> root;
         for (Entry<TimeGraphEntry, List<IMarkerEvent>> entry : markerMap.entrySet()) {
             List<IMarkerEvent> markers = entry.getValue();
             IMarkerEvent m = markers.get(0);
-            long center = Math.floorDiv(m.getTime() + (m.getTime() + m.getDuration()), 2);
+            long center = m.getTime(); // Math.floorDiv(m.getTime() + (m.getTime() + m.getDuration()), 2);
             root = new IntervalTree<>(new MarkerInterval(center - L, center + L, m));
 
             for (int i = 1; i < markers.size(); i++) {
 
                 m = markers.get(i);
-                center = Math.floorDiv(m.getTime() + (m.getTime() + m.getDuration()), 2);
+                center = m.getTime(); // Math.floorDiv(m.getTime() + (m.getTime() + m.getDuration()), 2);
 
                 List<MarkerInterval> intervals = root.getIntersections(center);
                 if (intervals.size() > 0) {
                     long minDist = Long.MAX_VALUE;
-                    MarkerInterval position;
+                    MarkerInterval position = null;
                     for (MarkerInterval interval : intervals) {
                         long dist = Math.abs(center - interval.getCenter());
                         if (dist < minDist) {
@@ -182,15 +178,29 @@ public class SegmentStoreOverlay implements ITimeGraphOverlay {
                             position = interval;
                         }
                     }
-                    position.addMarker(m);
+
+                    if (position != null) {
+                        position.addMarker(m);
+                    }
                 }
                 else {
                     root.insert(new MarkerInterval(center - L, center + L, m));
                 }
             }
 
+            List<MarkerInterval> intervals = root.getNodeValues();
+            for (MarkerInterval interval : intervals) {
+                List<IMarkerEvent> intervalMarkers = interval.getMarkers();
+                if (intervalMarkers.size() == 1) {
+                    outputMarkers.add(intervalMarkers.get(0));
+                }
+                else {
+                    outputMarkers.add(new MarkerEvent(entry.getKey(), interval.getMarkerCenter(), 0, getName(), color, "", true));
+                }
+            }
         }
 
+        return outputMarkers;
     }
 
     @Override
@@ -205,11 +215,14 @@ class MarkerInterval implements IInterval {
     private long fStart;
     private long fEnd;
 
+    private long fRollingAverage;
+
     public MarkerInterval(long start, long end, IMarkerEvent m) {
+        fRollingAverage = 0;
         fStart = start;
         fEnd = end;
         fMarkers = new ArrayList<>();
-        fMarkers.add(m);
+        addMarker(m);
     }
 
     @Override
@@ -224,9 +237,15 @@ class MarkerInterval implements IInterval {
 
     public void addMarker(IMarkerEvent marker) {
         fMarkers.add(marker);
+        long markerCenter = Math.floorDiv(marker.getTime() + marker.getTime() + marker.getDuration(), 2);
+        fRollingAverage += markerCenter;
     }
 
-    public boolean removeMarker(IMarkerEvent marker) {
-        return fMarkers.remove(marker);
+    public List<IMarkerEvent> getMarkers() {
+        return fMarkers;
+    }
+
+    public long getMarkerCenter() {
+        return Math.floorDiv(fRollingAverage, fMarkers.size());
     }
 }
