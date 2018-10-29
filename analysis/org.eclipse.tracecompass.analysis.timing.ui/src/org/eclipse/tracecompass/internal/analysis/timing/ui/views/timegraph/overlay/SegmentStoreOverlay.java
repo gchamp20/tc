@@ -152,7 +152,7 @@ public class SegmentStoreOverlay implements ITimeGraphOverlay {
          *          Move m to interval_i
          */
 
-        long L = Math.floorDiv(endTime - startTime, 20);
+        long L = Math.floorDiv(endTime - startTime, 40);
 
         List<IMarkerEvent>  outputMarkers = new ArrayList<>();
         IntervalTree<MarkerInterval> root;
