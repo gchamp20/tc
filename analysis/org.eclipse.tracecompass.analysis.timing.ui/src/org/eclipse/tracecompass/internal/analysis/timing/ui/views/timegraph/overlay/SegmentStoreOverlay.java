@@ -32,6 +32,7 @@ import org.eclipse.tracecompass.tmf.core.segment.ISegmentAspect;
 import org.eclipse.tracecompass.tmf.core.util.IInterval;
 import org.eclipse.tracecompass.tmf.core.util.IntervalTree;
 import org.eclipse.tracecompass.tmf.ui.views.timegraph.ITimeGraphOverlay;
+import org.eclipse.tracecompass.tmf.ui.widgets.timegraph.model.ClusterMarkerEvent;
 import org.eclipse.tracecompass.tmf.ui.widgets.timegraph.model.ILinkEvent;
 import org.eclipse.tracecompass.tmf.ui.widgets.timegraph.model.IMarkerEvent;
 import org.eclipse.tracecompass.tmf.ui.widgets.timegraph.model.MarkerEvent;
@@ -152,20 +153,20 @@ public class SegmentStoreOverlay implements ITimeGraphOverlay {
          *          Move m to interval_i
          */
 
-        long L = Math.floorDiv(endTime - startTime, 40);
+        long L = Math.floorDiv(endTime - startTime, 25);
 
         List<IMarkerEvent>  outputMarkers = new ArrayList<>();
         IntervalTree<MarkerInterval> root;
         for (Entry<TimeGraphEntry, List<IMarkerEvent>> entry : markerMap.entrySet()) {
             List<IMarkerEvent> markers = entry.getValue();
             IMarkerEvent m = markers.get(0);
-            long center = m.getTime(); // Math.floorDiv(m.getTime() + (m.getTime() + m.getDuration()), 2);
+            long center = Math.floorDiv(m.getTime() + (m.getTime() + m.getDuration()), 2);
             root = new IntervalTree<>(new MarkerInterval(center - L, center + L, m));
 
             for (int i = 1; i < markers.size(); i++) {
 
                 m = markers.get(i);
-                center = m.getTime(); // Math.floorDiv(m.getTime() + (m.getTime() + m.getDuration()), 2);
+                center = Math.floorDiv(m.getTime() + (m.getTime() + m.getDuration()), 2);
 
                 List<MarkerInterval> intervals = root.getIntersections(center);
                 if (intervals.size() > 0) {
@@ -195,7 +196,7 @@ public class SegmentStoreOverlay implements ITimeGraphOverlay {
                     outputMarkers.add(intervalMarkers.get(0));
                 }
                 else {
-                    outputMarkers.add(new MarkerEvent(entry.getKey(), interval.getMarkerCenter(), 0, getName(), color, "", true));
+                    outputMarkers.add(new ClusterMarkerEvent(entry.getKey(), interval.getMarkerCenter(), 0, getName(), color, "", true));
                 }
             }
         }
@@ -218,11 +219,11 @@ class MarkerInterval implements IInterval {
     private long fRollingAverage;
 
     public MarkerInterval(long start, long end, IMarkerEvent m) {
-        fRollingAverage = 0;
         fStart = start;
         fEnd = end;
+        fRollingAverage = Math.floorDiv(m.getTime() + m.getTime() + m.getDuration(), 2);
         fMarkers = new ArrayList<>();
-        addMarker(m);
+        fMarkers.add(m);
     }
 
     @Override
@@ -238,7 +239,7 @@ class MarkerInterval implements IInterval {
     public void addMarker(IMarkerEvent marker) {
         fMarkers.add(marker);
         long markerCenter = Math.floorDiv(marker.getTime() + marker.getTime() + marker.getDuration(), 2);
-        fRollingAverage += markerCenter;
+        fRollingAverage = fRollingAverage + Math.floorDiv(markerCenter - fRollingAverage, fMarkers.size());
     }
 
     public List<IMarkerEvent> getMarkers() {
@@ -246,6 +247,6 @@ class MarkerInterval implements IInterval {
     }
 
     public long getMarkerCenter() {
-        return Math.floorDiv(fRollingAverage, fMarkers.size());
+        return fRollingAverage;
     }
 }
