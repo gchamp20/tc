@@ -47,6 +47,11 @@ public class TimeEvent implements ITimeEvent, IFilterableDataModel {
     private int fActiveProperties = 0;
 
     /**
+     * Multimap for the metadata from @{link IFilterableDataModel}
+     */
+    private Multimap<@NonNull String, @NonNull String> fMetadata;
+
+    /**
      * Default value when no other value present
      */
     private static final int NOVALUE = Integer.MIN_VALUE;
@@ -82,6 +87,7 @@ public class TimeEvent implements ITimeEvent, IFilterableDataModel {
         fTime = time;
         fDuration = duration;
         fValue = value;
+        fMetadata = HashMultimap.create();
     }
 
     /**
@@ -107,6 +113,7 @@ public class TimeEvent implements ITimeEvent, IFilterableDataModel {
         fDuration = duration;
         fValue = value;
         fActiveProperties = activeProperties;
+        fMetadata = HashMultimap.create();
     }
 
     /**
@@ -125,6 +132,20 @@ public class TimeEvent implements ITimeEvent, IFilterableDataModel {
      */
     public boolean hasValue() {
         return (fValue != NOVALUE);
+    }
+
+    /**
+     * Adds a new value to the key in the
+     * metadata map.
+     *
+     * @param key
+     *          Key associated with the value.
+     * @param value
+     *          Value to add.
+     * @since 4.2
+     */
+    public void putMetadata(@NonNull String key, @NonNull String value) {
+        fMetadata.put(key, value);
     }
 
     @Override
@@ -206,7 +227,6 @@ public class TimeEvent implements ITimeEvent, IFilterableDataModel {
      */
     @Override
     public @NonNull Multimap<@NonNull String, @NonNull String> getMetadata() {
-        // TODO Implement
-        return HashMultimap.create();
+        return fMetadata;
     }
 }

@@ -4060,4 +4060,38 @@ public class TimeGraphControl extends TimeGraphBaseControl
     public boolean hasSavedFilters() {
         return fHasSavedFilters;
     }
+
+    protected IMarkerEvent getMarker(Point pt) {
+        if (!fMarkersVisible) {
+            return null;
+        }
+
+        ITimeGraphEntry entry = getEntry(pt);
+        if (entry == null) {
+            return null;
+        }
+
+        /**
+         * TODO: It is possible that multiple markers will overlap.
+         * It is not clear to me wich tooltip should be displayed
+         * in that case. Maybe the one which is center is the
+         * closests to?
+         *
+         * Currently, the first one that collides is selected.
+         */
+        long currPixelTime = getTimeAtX(pt.x);
+        IMarkerEvent selectedEvent = null;
+        for (IMarkerEvent ev: fMarkers) {
+            if (ev.getEntry() != entry) {
+                continue;
+            }
+
+            if (ev.getTime() <= currPixelTime && (ev.getTime() + ev.getDuration()) >= currPixelTime) {
+                selectedEvent = ev;
+                break;
+            }
+        }
+
+        return selectedEvent;
+    }
 }
