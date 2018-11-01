@@ -95,8 +95,8 @@ public class SegmentStoreOverlay implements ITimeGraphOverlay {
                 if (metadata.containsKey(aspect.getName())) {
                     // Add the entry to markable entries
                     markableEntries.put(entry, metadata);
-                    markedAspects.add(aspect);
                 }
+                markedAspects.add(aspect);
             }
         }
         if (monitor.isCanceled() || markedAspects.isEmpty() || markableEntries.isEmpty()) {
@@ -124,6 +124,12 @@ public class SegmentStoreOverlay implements ITimeGraphOverlay {
                 if (IFilterableDataModel.compareMetadata(resolvedAspects, entry.getValue())) {
                     // Create a marker
                     MarkerEvent m = new MarkerEvent(entry.getKey(), segment.getStart(), segment.getLength(), getName(), color, (segment instanceof INamedSegment) ? ((INamedSegment) segment).getName() : "", true);
+
+                    /* Add metadata to marker from the resolved aspects */
+                    for (Entry<String, String> e: resolvedAspects.entries()) {
+                        m.putMetadata(e.getKey(), e.getValue());
+                    }
+
                     List<IMarkerEvent> markers = markerMap.getOrDefault(entry.getKey(), new ArrayList<>());
                     markers.add(m);
                     if (!markerMap.containsKey(entry.getKey())) {

@@ -28,6 +28,7 @@ import org.eclipse.tracecompass.tmf.ui.views.FormatTimeUtils.Resolution;
 import org.eclipse.tracecompass.tmf.ui.views.FormatTimeUtils.TimeFormat;
 import org.eclipse.tracecompass.tmf.ui.widgets.timegraph.ITimeGraphPresentationProvider;
 import org.eclipse.tracecompass.tmf.ui.widgets.timegraph.model.ILinkEvent;
+import org.eclipse.tracecompass.tmf.ui.widgets.timegraph.model.IMarkerEvent;
 import org.eclipse.tracecompass.tmf.ui.widgets.timegraph.model.ITimeEvent;
 import org.eclipse.tracecompass.tmf.ui.widgets.timegraph.model.ITimeGraphEntry;
 import org.eclipse.tracecompass.tmf.ui.widgets.timegraph.model.NullTimeEvent;
@@ -89,9 +90,32 @@ public class TimeGraphTooltipHandler extends TmfAbstractToolTipHandler {
             }
         }
         if (getTipComposite().getChildren().length == 0) {
+            IMarkerEvent markerEvent = timeGraphControl.getMarker(pt);
+            fillValues(pt, timeGraphControl, markerEvent);
+        }
+        if (getTipComposite().getChildren().length == 0) {
             ITimeGraphEntry entry = timeGraphControl.getEntry(pt);
             fillValues(pt, timeGraphControl, entry);
         }
+    }
+
+    private void fillValues(Point pt, TimeGraphControl timeGraphControl, IMarkerEvent entry) {
+        if (entry == null) {
+            return;
+        }
+
+        long currPixelTime = timeGraphControl.getTimeAtX(pt.x);
+
+        // This block receives a list of <String, String> values to
+        // be added to the tip table
+        Map<String, String> eventAddOns = fTimeGraphProvider.getEventHoverToolTipInfo(entry, currPixelTime);
+        if (eventAddOns != null) {
+            for (Entry<String, String> eventAddOn : eventAddOns.entrySet()) {
+                addItem(eventAddOn.getKey(), eventAddOn.getValue());
+            }
+        }
+
+        fillTimeValues(entry, null);
     }
 
     private void fillValues(Point pt, TimeGraphControl timeGraphControl, ITimeGraphEntry entry) {
@@ -176,78 +200,83 @@ public class TimeGraphTooltipHandler extends TmfAbstractToolTipHandler {
                     addItem(eventAddOn.getKey(), eventAddOn.getValue());
                 }
             }
-            if (fTimeGraphProvider.displayTimesInTooltip()) {
-                long eventStartTime = -1;
-                long eventDuration = -1;
-                long eventEndTime = -1;
 
-                eventStartTime = currEvent.getTime();
-                eventDuration = currEvent.getDuration();
-                if (eventDuration < 0 && nextEvent != null) {
-                    eventEndTime = nextEvent.getTime();
-                    eventDuration = eventEndTime - eventStartTime;
-                } else {
-                    eventEndTime = eventStartTime + eventDuration;
-                }
+            fillTimeValues(currEvent, nextEvent);
+        }
+    }
 
-                Resolution res = Resolution.NANOSEC;
-                TimeFormat tf = fTimeDataProvider.getTimeFormat().convert();
-                String startTime = "?"; //$NON-NLS-1$
-                String duration = "?"; //$NON-NLS-1$
-                String endTime = "?"; //$NON-NLS-1$
-                if (fTimeDataProvider instanceof ITimeDataProviderConverter) {
-                    ITimeDataProviderConverter tdp = (ITimeDataProviderConverter) fTimeDataProvider;
-                    if (eventStartTime > -1) {
-                        eventStartTime = tdp.convertTime(eventStartTime);
-                        startTime = FormatTimeUtils.formatTime(eventStartTime, tf, res);
-                    }
-                    if (eventEndTime > -1) {
-                        eventEndTime = tdp.convertTime(eventEndTime);
-                        endTime = FormatTimeUtils.formatTime(eventEndTime, tf, res);
-                    }
-                    if (eventDuration > -1) {
-                        duration = FormatTimeUtils.formatDelta(eventEndTime - eventStartTime, tf, res);
-                    }
-                } else {
-                    if (eventStartTime > -1) {
-                        startTime = FormatTimeUtils.formatTime(eventStartTime, tf, res);
-                    }
-                    if (eventEndTime > -1) {
-                        endTime = FormatTimeUtils.formatTime(eventEndTime, tf, res);
-                    }
-                    if (eventDuration > -1) {
-                        duration = FormatTimeUtils.formatDelta(eventDuration, tf, res);
-                    }
-                }
-                if (tf == TimeFormat.CALENDAR) {
-                    addItem(Messages.TmfTimeTipHandler_TRACE_DATE,
-                            eventStartTime > -1 ? FormatTimeUtils.formatDate(eventStartTime) : "?"); //$NON-NLS-1$
-                }
-                if (eventDuration > 0) {
-                    addItem(Messages.TmfTimeTipHandler_TRACE_START_TIME, startTime);
-                    addItem(Messages.TmfTimeTipHandler_TRACE_STOP_TIME, endTime);
-                } else {
-                    addItem(Messages.TmfTimeTipHandler_TRACE_EVENT_TIME, startTime);
-                }
+    private void fillTimeValues(ITimeEvent currEvent, ITimeEvent nextEvent) {
+        if (fTimeGraphProvider.displayTimesInTooltip()) {
+            long eventStartTime = -1;
+            long eventDuration = -1;
+            long eventEndTime = -1;
 
-                if (eventDuration > 0) {
-                    addItem(Messages.TmfTimeTipHandler_DURATION, duration);
-                    long begin = fTimeDataProvider.getSelectionBegin();
-                    long end = fTimeDataProvider.getSelectionEnd();
-                    final long delta = Math.abs(end - begin);
-                    final double durationRatio = (double) eventDuration / (double) delta;
-                    if (delta > 0) {
-                        String percentage;
-                        if (durationRatio > MAX_RATIO) {
-                            percentage = MAX_STRING;
-                        } else if (durationRatio < MIN_RATIO) {
-                            percentage = MIN_STRING;
-                        } else {
-                            percentage = String.format("%,.2f%%", durationRatio * 100.0); //$NON-NLS-1$
-                        }
+            eventStartTime = currEvent.getTime();
+            eventDuration = currEvent.getDuration();
+            if (eventDuration < 0 && nextEvent != null) {
+                eventEndTime = nextEvent.getTime();
+                eventDuration = eventEndTime - eventStartTime;
+            } else {
+                eventEndTime = eventStartTime + eventDuration;
+            }
 
-                        addItem(Messages.TmfTimeTipHandler_PERCENT_OF_SELECTION, percentage);
+            Resolution res = Resolution.NANOSEC;
+            TimeFormat tf = fTimeDataProvider.getTimeFormat().convert();
+            String startTime = "?"; //$NON-NLS-1$
+            String duration = "?"; //$NON-NLS-1$
+            String endTime = "?"; //$NON-NLS-1$
+            if (fTimeDataProvider instanceof ITimeDataProviderConverter) {
+                ITimeDataProviderConverter tdp = (ITimeDataProviderConverter) fTimeDataProvider;
+                if (eventStartTime > -1) {
+                    eventStartTime = tdp.convertTime(eventStartTime);
+                    startTime = FormatTimeUtils.formatTime(eventStartTime, tf, res);
+                }
+                if (eventEndTime > -1) {
+                    eventEndTime = tdp.convertTime(eventEndTime);
+                    endTime = FormatTimeUtils.formatTime(eventEndTime, tf, res);
+                }
+                if (eventDuration > -1) {
+                    duration = FormatTimeUtils.formatDelta(eventEndTime - eventStartTime, tf, res);
+                }
+            } else {
+                if (eventStartTime > -1) {
+                    startTime = FormatTimeUtils.formatTime(eventStartTime, tf, res);
+                }
+                if (eventEndTime > -1) {
+                    endTime = FormatTimeUtils.formatTime(eventEndTime, tf, res);
+                }
+                if (eventDuration > -1) {
+                    duration = FormatTimeUtils.formatDelta(eventDuration, tf, res);
+                }
+            }
+            if (tf == TimeFormat.CALENDAR) {
+                addItem(Messages.TmfTimeTipHandler_TRACE_DATE,
+                        eventStartTime > -1 ? FormatTimeUtils.formatDate(eventStartTime) : "?"); //$NON-NLS-1$
+            }
+            if (eventDuration > 0) {
+                addItem(Messages.TmfTimeTipHandler_TRACE_START_TIME, startTime);
+                addItem(Messages.TmfTimeTipHandler_TRACE_STOP_TIME, endTime);
+            } else {
+                addItem(Messages.TmfTimeTipHandler_TRACE_EVENT_TIME, startTime);
+            }
+
+            if (eventDuration > 0) {
+                addItem(Messages.TmfTimeTipHandler_DURATION, duration);
+                long begin = fTimeDataProvider.getSelectionBegin();
+                long end = fTimeDataProvider.getSelectionEnd();
+                final long delta = Math.abs(end - begin);
+                final double durationRatio = (double) eventDuration / (double) delta;
+                if (delta > 0) {
+                    String percentage;
+                    if (durationRatio > MAX_RATIO) {
+                        percentage = MAX_STRING;
+                    } else if (durationRatio < MIN_RATIO) {
+                        percentage = MIN_STRING;
+                    } else {
+                        percentage = String.format("%,.2f%%", durationRatio * 100.0); //$NON-NLS-1$
                     }
+
+                    addItem(Messages.TmfTimeTipHandler_PERCENT_OF_SELECTION, percentage);
                 }
             }
         }
