@@ -12,6 +12,7 @@ package org.eclipse.tracecompass.internal.analysis.graph.core.criticalpath;
 import static org.eclipse.tracecompass.common.core.NonNullUtils.checkNotNull;
 
 import java.util.ArrayDeque;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Deque;
 import java.util.LinkedList;
@@ -120,6 +121,7 @@ public class CriticalPathAlgorithmBounded extends AbstractCriticalPathAlgorithm 
             currentVertex = nextVertex;
             nextEdge = currentVertex.getEdge(EdgeDirection.OUTGOING_HORIZONTAL_EDGE);
         }
+        expressCriticalPathAsList(criticalPath);
         return criticalPath;
     }
 
@@ -292,4 +294,31 @@ public class CriticalPathAlgorithmBounded extends AbstractCriticalPathAlgorithm 
         return subPath;
     }
 
+    private static List<TmfVertex> expressCriticalPathAsList(TmfGraph criticalPath) {
+        TmfVertex current = criticalPath.getHead();
+        List<TmfVertex> path = new ArrayList<>();
+
+        while (current != null) {
+            path.add(current);
+
+            TmfEdge outVer = current.getEdge(EdgeDirection.OUTGOING_VERTICAL_EDGE);
+            // TmfEdge incVer = current.getEdge(EdgeDirection.INCOMING_VERTICAL_EDGE);
+            TmfEdge outHor = current.getEdge(EdgeDirection.OUTGOING_HORIZONTAL_EDGE);
+            // TmfEdge incHor = current.getEdge(EdgeDirection.INCOMING_HORIZONTAL_EDGE);
+
+            /* Make sure only one outgoing edge is possible. */
+            assert( (outVer == null && outHor != null) ||
+                    (outVer != null && outHor == null));
+
+            if (outVer != null) {
+                current = outVer.getVertexTo();
+            } else if (outHor != null ){
+                current = outHor.getVertexTo();
+            } else {
+                current = null;
+            }
+        }
+
+        return path;
+    }
 }
