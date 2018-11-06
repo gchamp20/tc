@@ -9,7 +9,12 @@
 
 package org.eclipse.tracecompass.tmf.core.util;
 
+import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
+
+import org.eclipse.tracecompass.analysis.graph.core.base.TmfEdge;
 
 /**
  * Functions to implement the algorithm from:
@@ -31,12 +36,12 @@ public class MANEPI {
         /**
          * Set of minimal occurences
          */
-        private List<Object> fMinimalOccurences;
+        private Set<Object> fMinimalOccurences;
 
         /**
          * Set of minimal and non overlaping occurences
          */
-        private List<Object> fMinimalNonOverlappingOccurences;
+        private Set<Object> fMinimalNonOverlappingOccurences;
 
         /**
          * Childrens of this node.
@@ -46,8 +51,31 @@ public class MANEPI {
         /**
          *  The sequence on which pattern are discovered
          */
-        private List<Object> fSequence;
+        private List<TmfEdge> fSequence;
 
+        /**
+         * @param label
+         *      Label of the node
+         * @param sequence
+         *      The initial sequence
+         */
+        public FEPT(String label, List<TmfEdge> sequence) {
+            fLabel  = label;
+            fMinimalOccurences = new HashSet<>();
+            fMinimalNonOverlappingOccurences = new HashSet<>();
 
+            fChildrens = new ArrayList<>();
+            fSequence = sequence;
+        }
+    }
+
+    /**
+     * Compute the MANEPI algorithm
+     *
+     * @param edges
+     *          The ordered list of edges on the path
+     */
+    public static void compute(List<TmfEdge> edges) {
+        FEPT root = new FEPT("", edges);
     }
 }
