@@ -25,6 +25,9 @@ import org.eclipse.tracecompass.analysis.graph.core.base.TmfGraph;
 import org.eclipse.tracecompass.analysis.graph.core.base.TmfVertex;
 import org.eclipse.tracecompass.analysis.graph.core.base.TmfVertex.EdgeDirection;
 import org.eclipse.tracecompass.analysis.graph.core.criticalpath.CriticalPathAlgorithmException;
+import org.eclipse.tracecompass.analysis.graph.core.criticalpath.MANEPI;
+import org.eclipse.tracecompass.analysis.graph.core.criticalpath.MANEPI.EdgeKey;
+import org.eclipse.tracecompass.tmf.core.util.Pair;
 
 /**
  * Critical path bounded algorithm: backward resolution of blocking limited to
@@ -121,7 +124,17 @@ public class CriticalPathAlgorithmBounded extends AbstractCriticalPathAlgorithm 
             currentVertex = nextVertex;
             nextEdge = currentVertex.getEdge(EdgeDirection.OUTGOING_HORIZONTAL_EDGE);
         }
-        expressCriticalPathAsList(criticalPath);
+
+        List<TmfEdge> edges  =  expressCriticalPathAsList(criticalPath);
+        List<Pair<List<EdgeKey>, List<Pair<Long, Long>>>> patterns = MANEPI.compute(edges, criticalPath);
+        if (patterns.size() > 0 ) {
+            for (Pair<List<EdgeKey>, List<Pair<Long, Long>>> p : patterns) {
+                for (EdgeKey e : p.getFirst()) {
+                    System.out.println(String.valueOf(e.getFrom()) + " -> " + String.valueOf(e.getTo()) + " : " + String.valueOf(e.getType()));
+                }
+                System.out.println("---------------------------------------------------");
+            }
+        }
         return criticalPath;
     }
 

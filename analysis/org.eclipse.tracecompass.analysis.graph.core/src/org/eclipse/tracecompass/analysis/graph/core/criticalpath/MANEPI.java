@@ -138,9 +138,23 @@ public class MANEPI {
         public int hashCode() {
             return Objects.hash(fFromID, fToID, fType);
         }
+
+        public long getFrom() {
+            return fFromID;
+        }
+
+        public long getTo() {
+            return fToID;
+        }
+
+        public EdgeType getType() {
+            return fType;
+        }
     }
 
     private static Map<EdgeKey, List<Pair<Long, Long>>> fOneEpisodeOccurences = new HashMap<>();
+
+    private static final int TRESH = 10;
 
     /**
      * Compute the MANEPI algorithm
@@ -159,7 +173,7 @@ public class MANEPI {
         }
 
         FEPT root = new FEPT(new ArrayList<EdgeKey>(), edges);
-        List<EdgeKey> oneEpisodes = getOneEpisode(edges, graph, 2);
+        List<EdgeKey> oneEpisodes = getOneEpisode(edges, graph, TRESH);
 
         for (EdgeKey e : oneEpisodes) {
             FEPT node = new FEPT(e, edges);
@@ -171,6 +185,9 @@ public class MANEPI {
 
         List<Pair<List<EdgeKey>, List<Pair<Long, Long>>>> results = new ArrayList<>();
         walk(root, results);
+
+        //results.removeIf((s -> s.getFirst().size() != 2));
+
         return results;
     }
 
@@ -188,13 +205,17 @@ public class MANEPI {
     }
 
     private static void mineGrow(FEPT node, List<EdgeKey> oneEpisodes) {
+        if (node.fLabel.size() > 2) {
+            return;
+        }
+
         for (EdgeKey e : oneEpisodes) {
             List<Pair<Long, Long>> minimalOcc = computeMO(node.fMinimalOccurences,
                     fOneEpisodeOccurences.getOrDefault(e, new ArrayList<>()));
 
             List<Pair<Long, Long>> minimalNonOverlapOcc = computeMANO(minimalOcc);
 
-            if (minimalNonOverlapOcc.size() >= 2) {
+            if (minimalNonOverlapOcc.size() >= TRESH) {
                 List<EdgeKey> label = new ArrayList<>(node.fLabel);
                 label.add(e);
 
@@ -244,13 +265,15 @@ public class MANEPI {
             manob.add(mob.get(i));
             while (j < mob.size()) {
                 Long tie = mob.get(i).getSecond();
-                for (int k = j; k < mob.size(); k ++) {
+                int k = 0;
+                for (k = j; k < mob.size(); k ++) {
                     Long tks = mob.get(k).getFirst();
                     if (tie < tks) {
                         manob.add(mob.get(k));
-                        i = k;
+                        break;
                     }
                 }
+                i = k;
                 j = i + 1;
             }
         }
@@ -275,6 +298,10 @@ public class MANEPI {
         Long idx = 0L;
         for (TmfEdge e : edges) {
             EdgeKey key = new EdgeKey(e, graph);
+
+            if (key.getFrom() == key.getTo()) {
+                continue;
+            }
 
             /* Update frequency */
             Long val = oneEpisodeFrequencies.getOrDefault(key, 0L);
