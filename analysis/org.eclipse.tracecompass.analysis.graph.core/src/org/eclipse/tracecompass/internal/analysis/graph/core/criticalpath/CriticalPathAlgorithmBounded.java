@@ -294,13 +294,18 @@ public class CriticalPathAlgorithmBounded extends AbstractCriticalPathAlgorithm 
         return subPath;
     }
 
-    private static List<TmfVertex> expressCriticalPathAsList(TmfGraph criticalPath) {
+    /**
+     * @param criticalPath
+     *          The critical path
+     * @return
+     *          The list of edges used.
+     */
+    public static List<TmfEdge> expressCriticalPathAsList(TmfGraph criticalPath) {
         TmfVertex current = criticalPath.getHead();
-        List<TmfVertex> path = new ArrayList<>();
+        TmfEdge takenEdge = null;
+        List<TmfEdge> path = new ArrayList<>();
 
         while (current != null) {
-            path.add(current);
-
             TmfEdge outVer = current.getEdge(EdgeDirection.OUTGOING_VERTICAL_EDGE);
             // TmfEdge incVer = current.getEdge(EdgeDirection.INCOMING_VERTICAL_EDGE);
             TmfEdge outHor = current.getEdge(EdgeDirection.OUTGOING_HORIZONTAL_EDGE);
@@ -312,10 +317,17 @@ public class CriticalPathAlgorithmBounded extends AbstractCriticalPathAlgorithm 
 
             if (outVer != null) {
                 current = outVer.getVertexTo();
+                takenEdge = outVer;
             } else if (outHor != null ){
                 current = outHor.getVertexTo();
+                takenEdge = outHor;
             } else {
                 current = null;
+                takenEdge = null;
+            }
+
+            if (takenEdge != null) {
+                path.add(takenEdge);
             }
         }
 

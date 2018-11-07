@@ -478,6 +478,135 @@ public class GraphFactory {
                 }
             };
 
+
+            /**
+             * Two objects are blocked and mutually unblock at different times
+             *
+             * <pre>
+             *    0     1     2     3     4     5     6     7     8     9
+             * 0: * -R- * -R- * -R- * -B- * -R- * -R- * -R- * -B- * -R- *
+             *                |           |           |           |
+             * 1: * -R- * -B- * -R- * -R- * -R- * -B- * -R- * -R- * -R- *
+             * </pre>
+             */
+            public static GraphBuilder GRAPH_WAKEUP_MUTUAL_PERIODIC =
+                    new GraphBuilder("wakeup_mutual_periodic") {
+                        @Override
+                        public TmfGraph build() {
+                            TmfGraph graph = new TmfGraph();
+                            TmfVertex v0Wakeup = new TmfVertex(2);
+                            TmfVertex v0Wakeup2 = new TmfVertex(6);
+                            TmfVertex v0Unblock = new TmfVertex(4);
+                            TmfVertex v0Unblock2 = new TmfVertex(8);
+
+
+                            TmfVertex v1Unblock = new TmfVertex(2);
+                            TmfVertex v1Unblock2 = new TmfVertex(6);
+                            TmfVertex v1Wakeup = new TmfVertex(4);
+                            TmfVertex v1Wakeup2 = new TmfVertex(8);
+
+                            /* Add actor 0's vertices and edges */
+                            graph.add(Actor0, new TmfVertex(0));
+                            graph.append(Actor0, new TmfVertex(1), EdgeType.RUNNING);
+                            graph.append(Actor0, v0Wakeup, EdgeType.RUNNING);
+                            graph.append(Actor0, new TmfVertex(3), EdgeType.RUNNING);
+                            graph.append(Actor0, v0Unblock, EdgeType.BLOCKED);
+                            graph.append(Actor0, new TmfVertex(5), EdgeType.RUNNING);
+
+
+                            graph.append(Actor0, v0Wakeup2, EdgeType.RUNNING);
+                            graph.append(Actor0, new TmfVertex(7), EdgeType.RUNNING);
+                            graph.append(Actor0, v0Unblock2, EdgeType.BLOCKED);
+                            graph.append(Actor0, new TmfVertex(9), EdgeType.RUNNING);
+
+                            /* Add actor 1's vertices and edges */
+                            graph.add(Actor1, new TmfVertex(0));
+                            graph.append(Actor1, new TmfVertex(1), EdgeType.RUNNING);
+                            graph.append(Actor1, v1Unblock, EdgeType.BLOCKED);
+                            graph.append(Actor1, new TmfVertex(3), EdgeType.RUNNING);
+                            graph.append(Actor1, v1Wakeup, EdgeType.RUNNING);
+                            graph.append(Actor1, new TmfVertex(5), EdgeType.RUNNING);
+
+                            graph.append(Actor1, v1Unblock2, EdgeType.BLOCKED);
+                            graph.append(Actor1, new TmfVertex(7), EdgeType.RUNNING);
+                            graph.append(Actor1, v1Wakeup2, EdgeType.RUNNING);
+                            graph.append(Actor1, new TmfVertex(9), EdgeType.RUNNING);
+
+                            /* Add vertical links */
+                            graph.link(v0Wakeup, v1Unblock);
+                            graph.link(v1Wakeup, v0Unblock);
+
+                            graph.link(v0Wakeup2, v1Unblock2);
+                            graph.link(v1Wakeup2, v0Unblock2);
+                            return graph;
+                        }
+
+                        @Override
+                        public TmfGraph criticalPathBounded() {
+                            TmfGraph graph = new TmfGraph();
+                            TmfVertex v0StartBlock = new TmfVertex(3);
+                            TmfVertex v0EndBlock = new TmfVertex(4);
+                            TmfVertex v1StartBlock = new TmfVertex(3);
+                            TmfVertex v1EndBlock = new TmfVertex(4);
+
+                            TmfVertex v0StartBlock2 = new TmfVertex(7);
+                            TmfVertex v0EndBlock2 = new TmfVertex(8);
+                            TmfVertex v1StartBlock2 = new TmfVertex(7);
+                            TmfVertex v1EndBlock2 = new TmfVertex(8);
+
+                            /* Add actor 0's vertices and edges */
+                            graph.add(Actor0, new TmfVertex(0));
+                            graph.append(Actor0, new TmfVertex(1), EdgeType.RUNNING);
+                            graph.append(Actor0, new TmfVertex(2), EdgeType.RUNNING);
+                            graph.append(Actor0, v0StartBlock, EdgeType.RUNNING);
+                            graph.add(Actor0, v0EndBlock);
+                            graph.append(Actor0, new TmfVertex(5), EdgeType.RUNNING);
+                            graph.append(Actor0, new TmfVertex(6), EdgeType.RUNNING);
+                            graph.append(Actor0, v0StartBlock2, EdgeType.RUNNING);
+                            graph.add(Actor0, v0EndBlock2);
+                            graph.append(Actor0, new TmfVertex(9), EdgeType.RUNNING);
+
+                            /* Add actor 1's vertices and edges */
+                            graph.add(Actor1, v1StartBlock);
+                            graph.append(Actor1, v1EndBlock, EdgeType.RUNNING);
+                            graph.add(Actor1, v1StartBlock2);
+                            graph.append(Actor1, v1EndBlock2, EdgeType.RUNNING);
+
+                            /* Add vertical links */
+                            graph.link(v0StartBlock, v1StartBlock);
+                            graph.link(v1EndBlock, v0EndBlock);
+                            graph.link(v0StartBlock2, v1StartBlock2);
+                            graph.link(v1EndBlock2, v0EndBlock2);
+                            return graph;
+                        }
+
+                        @Override
+                        public TmfGraph criticalPathUnbounded() {
+                            TmfGraph graph = new TmfGraph();
+                            TmfVertex v0Wakeup = new TmfVertex(2);
+                            TmfVertex v0Unblock = new TmfVertex(4);
+                            TmfVertex v1Unblock = new TmfVertex(2);
+                            TmfVertex v1Wakeup = new TmfVertex(4);
+
+                            /* Add actor 0's vertices and edges */
+                            graph.add(Actor0, new TmfVertex(0));
+                            graph.append(Actor0, new TmfVertex(1), EdgeType.RUNNING);
+                            graph.append(Actor0, v0Wakeup, EdgeType.RUNNING);
+                            graph.add(Actor0, v0Unblock);
+                            graph.append(Actor0, new TmfVertex(5), EdgeType.RUNNING);
+
+                            /* Add actor 1's vertices and edges */
+                            graph.add(Actor1, v1Unblock);
+                            graph.append(Actor1, new TmfVertex(3), EdgeType.RUNNING);
+                            graph.append(Actor1, v1Wakeup, EdgeType.RUNNING);
+
+                            /* Add vertical links */
+                            graph.link(v0Wakeup, v1Unblock);
+                            graph.link(v1Wakeup, v0Unblock);
+                            return graph;
+                        }
+                    };
+
     /**
      * Many objects wakeup the first object, the calls are embedded
      *

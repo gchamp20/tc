@@ -124,6 +124,5 @@ Import-Package: com.google.common.annotations,
  org.antlr.runtime,
  org.antlr.runtime.tree,
  org.apache.commons.io,
- org.apache.commons.lang3,
- org.eclipse.tracecompass.analysis.graph.core.base
+ org.apache.commons.lang3
 Automatic-Module-Name: org.eclipse.tracecompass.tmf.core

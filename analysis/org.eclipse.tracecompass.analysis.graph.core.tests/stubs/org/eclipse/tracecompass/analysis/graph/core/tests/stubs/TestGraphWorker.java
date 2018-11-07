@@ -12,6 +12,10 @@
 
 package org.eclipse.tracecompass.analysis.graph.core.tests.stubs;
 
+import java.util.Collections;
+import java.util.Map;
+
+import org.eclipse.jdt.annotation.NonNull;
 import org.eclipse.jdt.annotation.Nullable;
 import org.eclipse.tracecompass.analysis.graph.core.base.IGraphWorker;
 
@@ -49,5 +53,10 @@ public class TestGraphWorker implements IGraphWorker {
             return fValue.equals(((TestGraphWorker) obj).fValue);
         }
         return false;
+    }
+
+    @Override
+    public @NonNull Map<@NonNull String, @NonNull String> getWorkerInformation() {
+        return Collections.singletonMap("tid", String.valueOf(fValue)); //$NON-NLS-1$
     }
 }

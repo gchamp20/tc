@@ -11,13 +11,20 @@ package org.eclipse.tracecompass.analysis.graph.core.tests.analysis.criticalpath
 
 import static org.junit.Assert.assertNotNull;
 
+import java.util.List;
+
 import org.eclipse.jdt.annotation.NonNull;
 import org.eclipse.tracecompass.analysis.graph.core.base.IGraphWorker;
+import org.eclipse.tracecompass.analysis.graph.core.base.TmfEdge;
 import org.eclipse.tracecompass.analysis.graph.core.base.TmfGraph;
 import org.eclipse.tracecompass.analysis.graph.core.base.TmfVertex;
+import org.eclipse.tracecompass.analysis.graph.core.criticalpath.MANEPI;
+import org.eclipse.tracecompass.analysis.graph.core.criticalpath.MANEPI.EdgeKey;
 import org.eclipse.tracecompass.analysis.graph.core.tests.stubs.GraphBuilder;
 import org.eclipse.tracecompass.analysis.graph.core.tests.stubs.GraphFactory;
 import org.eclipse.tracecompass.analysis.graph.core.tests.stubs.GraphOps;
+import org.eclipse.tracecompass.internal.analysis.graph.core.criticalpath.CriticalPathAlgorithmBounded;
+import org.eclipse.tracecompass.tmf.core.util.Pair;
 import org.junit.Test;
 
 /**
@@ -70,6 +77,36 @@ public abstract class TmfCriticalPathAlgorithmTest {
 
         /* Check the 2 graphs are equivalent */
         GraphOps.checkEquality(expected, actual);
+    }
+
+    private void testCriticalPeriodicPath(GraphBuilder builder, IGraphWorker obj) {
+        /* Get the base graph */
+        TmfGraph main = builder.build();
+        assertNotNull(main);
+
+        /* The expected critical path */
+        TmfGraph expected = getExpectedCriticalPath(builder);
+        assertNotNull(expected);
+
+        /* The actual critical path */
+        TmfVertex head = null;
+        if (obj == null) {
+            head = main.getHead();
+        } else {
+            head = main.getHead(obj);
+        }
+        assertNotNull(head);
+        TmfGraph actual = computeCriticalPath(main, head);
+        assertNotNull(actual);
+
+        /* Check the 2 graphs are equivalent */
+        GraphOps.checkEquality(expected, actual);
+
+        List<TmfEdge> edges = CriticalPathAlgorithmBounded.expressCriticalPathAsList(actual);
+        assertNotNull(edges);
+
+        List<Pair<List<EdgeKey>, List<Pair<Long, Long>>>> result = MANEPI.compute(edges, actual);
+        assertNotNull(result);
     }
 
     /**
@@ -170,4 +207,11 @@ public abstract class TmfCriticalPathAlgorithmTest {
         testCriticalPath(GraphFactory.GRAPH_NET1, GraphFactory.Actor0);
     }
 
+    /**
+     * Test the algorithm on the {@link GraphFactory#GRAPH_NET1} graph
+     */
+    @Test
+    public void testCriticalPathWakeupMutualPeriodic() {
+        testCriticalPeriodicPath(GraphFactory.GRAPH_WAKEUP_MUTUAL_PERIODIC, GraphFactory.Actor0);
+    }
 }
