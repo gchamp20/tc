@@ -50,6 +50,7 @@ public class CriticalPathAlgorithmBounded extends AbstractCriticalPathAlgorithm 
      */
     public CriticalPathAlgorithmBounded(TmfGraph graph) {
         super(graph);
+        fLastPatternOccurences = new ArrayList<>();
     }
 
     @Override
@@ -128,14 +129,28 @@ public class CriticalPathAlgorithmBounded extends AbstractCriticalPathAlgorithm 
         List<TmfEdge> edges  =  expressCriticalPathAsList(criticalPath);
         List<Pair<List<EdgeKey>, List<Pair<Long, Long>>>> patterns = MANEPI.compute(edges, criticalPath);
         if (patterns.size() > 0 ) {
-            for (Pair<List<EdgeKey>, List<Pair<Long, Long>>> p : patterns) {
+            fLastPatternOccurences = new ArrayList<>();
+            Pair<List<EdgeKey>, List<Pair<Long, Long>>> p = patterns.get(0);
+            //for (Pair<List<EdgeKey>, List<Pair<Long, Long>>> p : patterns) {
                 for (EdgeKey e : p.getFirst()) {
                     System.out.println(String.valueOf(e.getFrom()) + " -> " + String.valueOf(e.getTo()) + " : " + String.valueOf(e.getType()));
                 }
+
+                for (Pair<Long, Long> occ : p.getSecond()) {
+                    Long startTs= edges.get(occ.getFirst().intValue()).getVertexTo().getTs();
+                    Long endTs = edges.get(occ.getSecond().intValue()).getVertexFrom().getTs();
+                    fLastPatternOccurences.add(new Pair<>(startTs, endTs));
+                }
                 System.out.println("---------------------------------------------------");
-            }
+            //}
         }
         return criticalPath;
+    }
+
+    private List<Pair<Long, Long>> fLastPatternOccurences;
+
+    public List<Pair<Long,Long>> getLastPatternOccurences() {
+        return fLastPatternOccurences;
     }
 
     /** Add the links to the critical path, with currentVertex to glue to */

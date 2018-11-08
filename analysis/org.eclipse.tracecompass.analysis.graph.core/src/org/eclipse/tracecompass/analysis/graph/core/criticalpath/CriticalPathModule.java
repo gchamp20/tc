@@ -9,6 +9,9 @@
 
 package org.eclipse.tracecompass.analysis.graph.core.criticalpath;
 
+import java.util.ArrayList;
+import java.util.List;
+
 import org.eclipse.core.runtime.IProgressMonitor;
 import org.eclipse.jdt.annotation.NonNull;
 import org.eclipse.jdt.annotation.Nullable;
@@ -24,6 +27,7 @@ import org.eclipse.tracecompass.internal.analysis.graph.core.criticalpath.Messag
 import org.eclipse.tracecompass.tmf.core.analysis.TmfAbstractAnalysisModule;
 import org.eclipse.tracecompass.tmf.core.exceptions.TmfAnalysisException;
 import org.eclipse.tracecompass.tmf.core.trace.ITmfTrace;
+import org.eclipse.tracecompass.tmf.core.util.Pair;
 
 /**
  * Class to implement the critical path analysis
@@ -58,6 +62,7 @@ public class CriticalPathModule extends TmfAbstractAnalysisModule implements ICr
         addParameter(PARAM_WORKER);
         setId(ANALYSIS_ID);
         fGraphModule = graph;
+        fLastOccurences = new ArrayList<>();
     }
 
     @Override
@@ -96,6 +101,7 @@ public class CriticalPathModule extends TmfAbstractAnalysisModule implements ICr
         ICriticalPathAlgorithm cp = getAlgorithm(graph);
         try {
             fCriticalPath = cp.compute(head, null);
+            fLastOccurences = ((CriticalPathAlgorithmBounded)cp).getLastPatternOccurences();
             return true;
         } catch (CriticalPathAlgorithmException e) {
             Activator.getInstance().logError(NonNullUtils.nullToEmptyString(e.getMessage()), e);
@@ -137,6 +143,14 @@ public class CriticalPathModule extends TmfAbstractAnalysisModule implements ICr
     @Override
     public @Nullable TmfGraph getCriticalPath() {
         return fCriticalPath;
+    }
+
+    private List<Pair<Long, Long>> fLastOccurences;
+    /**
+     * @since 2.1
+     */
+    public List<Pair<Long, Long>> getLastPatternOccurences() {
+        return fLastOccurences;
     }
 
     @Override

@@ -154,7 +154,7 @@ public class MANEPI {
 
     private static Map<EdgeKey, List<Pair<Long, Long>>> fOneEpisodeOccurences = new HashMap<>();
 
-    private static final int TRESH = 10;
+    private static final int TRESH = 8;
 
     /**
      * Compute the MANEPI algorithm
@@ -205,7 +205,7 @@ public class MANEPI {
     }
 
     private static void mineGrow(FEPT node, List<EdgeKey> oneEpisodes) {
-        if (node.fLabel.size() > 2) {
+        if (node.fLabel.size() > 1) {
             return;
         }
 
@@ -300,6 +300,7 @@ public class MANEPI {
             EdgeKey key = new EdgeKey(e, graph);
 
             if (key.getFrom() == key.getTo()) {
+                idx += 1;
                 continue;
             }
 

@@ -15,7 +15,6 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicLong;
@@ -47,12 +46,14 @@ import org.eclipse.tracecompass.tmf.core.model.timegraph.TimeGraphState;
 import org.eclipse.tracecompass.tmf.core.response.ITmfResponse.Status;
 import org.eclipse.tracecompass.tmf.core.response.TmfModelResponse;
 import org.eclipse.tracecompass.tmf.core.trace.ITmfTrace;
+import org.eclipse.tracecompass.tmf.core.util.Pair;
 
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
-import com.google.common.collect.BiMap;
-import com.google.common.collect.HashBiMap;
+import com.google.common.collect.ArrayListMultimap;
+
+import com.google.common.collect.ListMultimap;
 import com.google.common.collect.TreeMultimap;
 
 /**
@@ -81,7 +82,9 @@ public class CriticalPathDataProvider extends AbstractTmfTraceDataProvider imple
     /**
      * Remember the unique mappings from workers to their entry IDs
      */
-    private final BiMap<IGraphWorker, Long> fWorkerToEntryId = HashBiMap.create();
+    private final ListMultimap<IGraphWorker, Long> fWorkerToEntryId = ArrayListMultimap.create();
+
+
 
     private final LoadingCache<IGraphWorker, CriticalPathVisitor> fHorizontalVisitorCache = CacheBuilder.newBuilder()
             .maximumSize(10).build(new CacheLoader<IGraphWorker, CriticalPathVisitor>() {
@@ -116,6 +119,8 @@ public class CriticalPathDataProvider extends AbstractTmfTraceDataProvider imple
     public synchronized @NonNull TmfModelResponse<@NonNull List<@NonNull CriticalPathEntry>> fetchTree(
             @NonNull TimeQueryFilter filter, @Nullable IProgressMonitor monitor) {
         TmfGraph graph = fCriticalPathModule.getCriticalPath();
+        List<Pair<Long, Long>> occurences = fCriticalPathModule.getLastPatternOccurences();
+
         if (graph == null) {
             return new TmfModelResponse<>(null, Status.RUNNING, CommonStatusMessage.RUNNING);
         }
@@ -126,7 +131,7 @@ public class CriticalPathDataProvider extends AbstractTmfTraceDataProvider imple
         }
 
         CriticalPathVisitor visitor = fHorizontalVisitorCache.getUnchecked(current);
-        return new TmfModelResponse<>(visitor.getEntries(), Status.COMPLETED, CommonStatusMessage.COMPLETED);
+        return new TmfModelResponse<>(visitor.getEntries(occurences), Status.COMPLETED, CommonStatusMessage.COMPLETED);
     }
 
     /**
@@ -219,12 +224,12 @@ public class CriticalPathDataProvider extends AbstractTmfTraceDataProvider imple
 
     @Override
     public @NonNull TmfModelResponse<@NonNull Map<@NonNull String, @NonNull String>> fetchTooltip(@NonNull SelectionTimeQueryFilter filter, @Nullable IProgressMonitor monitor) {
-        IGraphWorker worker = fWorkerToEntryId.inverse().get(filter.getSelectedItems().iterator().next());
-        if (worker == null) {
+        // IGraphWorker worker = null;/*fWorkerToEntryId.inverse().get(filter.getSelectedItems().iterator().next());*/
+        // if (worker == null) {
             return new TmfModelResponse<>(null, Status.COMPLETED, CommonStatusMessage.COMPLETED);
-        }
-        Map<@NonNull String, @NonNull String> info = worker.getWorkerInformation(filter.getStart());
-        return new TmfModelResponse<>(info, Status.COMPLETED, CommonStatusMessage.COMPLETED);
+        // }
+        /*Map<@NonNull String, @NonNull String> info = worker.getWorkerInformation(filter.getStart());
+        return new TmfModelResponse<>(info, Status.COMPLETED, CommonStatusMessage.COMPLETED); */
     }
 
     private final class CriticalPathVisitor extends TmfGraphVisitor {
@@ -233,7 +238,7 @@ public class CriticalPathDataProvider extends AbstractTmfTraceDataProvider imple
          * The {@link IGraphWorker} for which the view (tree / states) are computed
          */
         private final Map<String, CriticalPathEntry> fHostEntries = new HashMap<>();
-        private final Map<IGraphWorker, CriticalPathEntry> fWorkers = new LinkedHashMap<>();
+        private final ListMultimap<IGraphWorker, CriticalPathEntry> fWorkers = ArrayListMultimap.create();
         private final TmfGraphStatistics fStatistics = new TmfGraphStatistics();
 
         /**
@@ -274,14 +279,18 @@ public class CriticalPathDataProvider extends AbstractTmfTraceDataProvider imple
             if (owner == null) {
                 return;
             }
-            if (fWorkers.containsKey(owner)) {
+
+            List<CriticalPathEntry> entries = fWorkers.get(owner);
+            if (entries.size() == fCurrentOccurence) {
                 return;
             }
+
             TmfVertex first = fGraph.getHead(owner);
             TmfVertex last = fGraph.getTail(owner);
             if (first == null || last == null) {
                 return;
             }
+
             fStart = Long.min(getTrace().getStartTime().toNanos(), first.getTs());
             fEnd = Long.max(getTrace().getEndTime().toNanos(), last.getTs());
             Long sum = fStatistics.getSum(owner);
@@ -292,30 +301,75 @@ public class CriticalPathDataProvider extends AbstractTmfTraceDataProvider imple
             long parentId = fHostIdToEntryId.computeIfAbsent(host, h -> ATOMIC_LONG.getAndIncrement());
             fHostEntries.computeIfAbsent(host, h -> new CriticalPathEntry(parentId, -1L, host, fStart, fEnd, sum, percent));
 
-            long entryId = fWorkerToEntryId.computeIfAbsent(owner, w -> ATOMIC_LONG.getAndIncrement());
-            CriticalPathEntry entry = new CriticalPathEntry(entryId, parentId, owner, fStart, fEnd, sum, percent);
+            /* Check if we changed occurence */
+            int occ = 1;
+            boolean foundOcc = false;
+            for (Pair<Long, Long> interval : fOcc) {
+                if (interval.getFirst() <= node.getTs() && interval.getSecond() > node.getTs()) {
+                    foundOcc = true;
+                    break;
+                }
+                occ += 1;
+            }
 
-            fWorkers.put(owner, entry);
+            if (foundOcc && occ != fLastOccurence) {
+                fLastOccurence = occ;
+                if (fCurrentOccurence == -1) {
+                    fCurrentOccurence = 1;
+                } else {
+                    fCurrentOccurence += 1;
+                }
+                Long occurenceEntry = ATOMIC_LONG.getAndIncrement();
+                CriticalPathEntry occEntry = new CriticalPathEntry(occurenceEntry, parentId, "Occ" +
+                        String.valueOf(fCurrentOccurence), fStart, fEnd,
+                        sum, percent);
+                fScenarioStart = fOcc.get(occ - 1).getFirst();
+                fOccEntries.add(occEntry);
+                fInOcc = true;
+            }
+
+            if (foundOcc) {
+                List<Long> entryIds = fWorkerToEntryId.get(owner);
+                if (entryIds.size() != fCurrentOccurence) {
+                    // Get occurence entry
+                    Long parentOcc = fOccEntries.get(fCurrentOccurence - 1).getId();
+
+                    // create new entry
+                    long entryId = ATOMIC_LONG.getAndIncrement();
+                    CriticalPathEntry entry = new CriticalPathEntry(entryId, parentOcc, owner, fStart, fEnd, sum, percent);
+                    fWorkerToEntryId.put(owner, entryId);
+                    fWorkers.put(owner, entry);
+                }
+            } else {
+                fInOcc = false;
+            }
         }
 
         @Override
         public void visit(TmfEdge link, boolean horizontal) {
+            if (!fInOcc) {
+                return;
+            }
+
             if (horizontal) {
                 IGraphWorker parent = fGraph.getParentOf(link.getVertexFrom());
-                Long id = fWorkerToEntryId.get(parent);
-                if (id != null) {
+                List<Long> listId = fWorkerToEntryId.get(parent);
+                if (listId.size() > 0) {
+                    Long id = listId.get(listId.size() - 1);
                     String linkQualifier = link.getLinkQualifier();
-                    ITimeGraphState ev = (linkQualifier == null) ? new TimeGraphState(link.getVertexFrom().getTs(), link.getDuration(), getMatchingState(link.getType())) :
-                        new TimeGraphState(link.getVertexFrom().getTs(), link.getDuration(), getMatchingState(link.getType()), linkQualifier);
+                    ITimeGraphState ev = (linkQualifier == null) ? new TimeGraphState(fStart + link.getVertexFrom().getTs() - fScenarioStart, link.getDuration(), getMatchingState(link.getType())) :
+                        new TimeGraphState(fStart + (link.getVertexFrom().getTs() - fScenarioStart), link.getDuration(), getMatchingState(link.getType()), linkQualifier);
                     fStates.put(id, ev);
                 }
             } else {
                 IGraphWorker parentFrom = fGraph.getParentOf(link.getVertexFrom());
                 IGraphWorker parentTo = fGraph.getParentOf(link.getVertexTo());
-                CriticalPathEntry entryFrom = fWorkers.get(parentFrom);
-                CriticalPathEntry entryTo = fWorkers.get(parentTo);
+                List<CriticalPathEntry> entryFromList = fWorkers.get(parentFrom);
+                List<CriticalPathEntry> entryToList = fWorkers.get(parentTo);
                 List<ITimeGraphArrow> graphLinks = fGraphLinks;
-                if (graphLinks != null && entryFrom != null && entryTo != null) {
+                if (graphLinks != null && entryFromList.size() > 0 && entryToList.size() > 0) {
+                    CriticalPathEntry entryFrom = entryFromList.get(fCurrentOccurence - 1);
+                    CriticalPathEntry entryTo = entryToList.get(fCurrentOccurence - 1);
                     ITimeGraphArrow lk = new TimeGraphArrow(entryFrom.getId(), entryTo.getId(), link.getVertexFrom().getTs(),
                             link.getVertexTo().getTs() - link.getVertexFrom().getTs(), getMatchingState(link.getType()));
                     graphLinks.add(lk);
@@ -323,33 +377,103 @@ public class CriticalPathDataProvider extends AbstractTmfTraceDataProvider imple
             }
         }
 
-        public @NonNull List<@NonNull CriticalPathEntry> getEntries() {
+        @Override
+        public void visit(TmfVertex node) {
+            IGraphWorker owner = fGraph.getParentOf(node);
+            if (owner == null) {
+                return;
+            }
+
+            List<CriticalPathEntry> entries = fWorkers.get(owner);
+            if (entries.size() == fCurrentOccurence) {
+                return;
+            }
+
+            TmfVertex first = fGraph.getHead(owner);
+            TmfVertex last = fGraph.getTail(owner);
+            if (first == null || last == null) {
+                return;
+            }
+
+            fStart = Long.min(getTrace().getStartTime().toNanos(), first.getTs());
+            fEnd = Long.max(getTrace().getEndTime().toNanos(), last.getTs());
+            Long sum = fStatistics.getSum(owner);
+            Double percent = fStatistics.getPercent(owner);
+
+            // create host entry
+            String host = owner.getHostId();
+            long parentId = fHostIdToEntryId.computeIfAbsent(host, h -> ATOMIC_LONG.getAndIncrement());
+            fHostEntries.computeIfAbsent(host, h -> new CriticalPathEntry(parentId, -1L, host, fStart, fEnd, sum, percent));
+
+            /* Check if we changed occurence */
+            int occ = 1;
+            boolean foundOcc = false;
+            for (Pair<Long, Long> interval : fOcc) {
+                if (interval.getFirst() <= node.getTs() && interval.getSecond() > node.getTs()) {
+                    foundOcc = true;
+                    break;
+                }
+                occ += 1;
+            }
+
+            if (foundOcc && occ != fLastOccurence) {
+                fLastOccurence = occ;
+                if (fCurrentOccurence == -1) {
+                    fCurrentOccurence = 1;
+                } else {
+                    fCurrentOccurence += 1;
+                }
+                Long occurenceEntry = ATOMIC_LONG.getAndIncrement();
+                fScenarioStart = fOcc.get(occ - 1).getFirst();
+                CriticalPathEntry occEntry = new CriticalPathEntry(occurenceEntry, parentId, "Occ" +
+                        String.valueOf(fCurrentOccurence), fStart, fEnd,
+                        sum, percent);
+                fOccEntries.add(occEntry);
+                fInOcc = true;
+            }
+        }
+
+        private List<CriticalPathEntry> fOccEntries;
+        private List<Pair<Long, Long>> fOcc;
+        private int fCurrentOccurence;
+        private int fLastOccurence;
+        private long fScenarioStart;
+        private boolean fInOcc;
+        public @NonNull List<@NonNull CriticalPathEntry> getEntries(List<Pair<Long, Long>> occ) {
             if (fCached != null) {
                 return fCached;
             }
 
+            fOccEntries = new ArrayList<>();
+            fOcc = occ;
+            fCurrentOccurence = -1;
+            fLastOccurence = -1;
+            fScenarioStart = 0;
+            fInOcc = false;
             fGraph.scanLineTraverse(fGraph.getHead(), this);
             List<@NonNull CriticalPathEntry> list = new ArrayList<>(fHostEntries.values());
+            list.addAll(fOccEntries);
             list.addAll(fWorkers.values());
             fCached = list;
             return list;
         }
 
-        public synchronized List<ITimeGraphArrow> getGraphLinks() {
+        /*public synchronized List<ITimeGraphArrow> getGraphLinks() {
             if (fGraphLinks == null) {
                 // the graph has not been traversed yet
                 fGraphLinks = new ArrayList<>();
                 fGraph.scanLineTraverse(fGraph.getHead(), this);
             }
             return fGraphLinks;
-        }
+        }*/
     }
 
     /**
      * Critical path typically has relatively few links, so we calculate and save
      * them all, but just return those in range
      */
-    private @Nullable List<@NonNull ITimeGraphArrow> getLinkList(long startTime, long endTime) {
+    private @Nullable
+    List<@NonNull ITimeGraphArrow> getLinkList(long startTime, long endTime) {
         IGraphWorker current = getCurrent();
         List<ITimeGraphArrow> graphLinks = fLinks;
         if (current == null) {
@@ -362,12 +486,13 @@ public class CriticalPathDataProvider extends AbstractTmfTraceDataProvider imple
         if (visitor == null) {
             return Collections.emptyList();
         }
-        graphLinks = visitor.getGraphLinks();
-        fLinks = graphLinks;
-        return getLinksInRange(graphLinks, startTime, endTime);
+        // graphLinks = visitor.getGraphLinks();
+        // fLinks = graphLinks;
+        // getLinksInRange(graphLinks, startTime, endTime);
+        return null;
     }
 
-    private static List<@NonNull ITimeGraphArrow> getLinksInRange(List<ITimeGraphArrow> allLinks, long startTime, long endTime) {
+    /*private static List<@NonNull ITimeGraphArrow> getLinksInRange(List<ITimeGraphArrow> allLinks, long startTime, long endTime) {
         List<@NonNull ITimeGraphArrow> linksInRange = new ArrayList<>();
         for (ITimeGraphArrow link : allLinks) {
             if (link.getStartTime() <= endTime &&
@@ -376,7 +501,7 @@ public class CriticalPathDataProvider extends AbstractTmfTraceDataProvider imple
             }
         }
         return linksInRange;
-    }
+    }*/
 
     private static int getMatchingState(EdgeType type) {
         switch (type) {
