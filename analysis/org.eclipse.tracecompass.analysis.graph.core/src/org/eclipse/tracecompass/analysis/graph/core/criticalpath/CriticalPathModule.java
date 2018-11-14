@@ -9,6 +9,8 @@
 
 package org.eclipse.tracecompass.analysis.graph.core.criticalpath;
 
+import java.util.List;
+
 import org.eclipse.core.runtime.IProgressMonitor;
 import org.eclipse.jdt.annotation.NonNull;
 import org.eclipse.jdt.annotation.Nullable;
@@ -17,6 +19,7 @@ import org.eclipse.tracecompass.analysis.graph.core.base.IGraphWorker;
 import org.eclipse.tracecompass.analysis.graph.core.base.TmfGraph;
 import org.eclipse.tracecompass.analysis.graph.core.base.TmfVertex;
 import org.eclipse.tracecompass.analysis.graph.core.building.TmfGraphBuilderModule;
+import org.eclipse.tracecompass.analysis.os.linux.core.realtime.MANEPI.EventKey;
 import org.eclipse.tracecompass.common.core.NonNullUtils;
 import org.eclipse.tracecompass.internal.analysis.graph.core.Activator;
 import org.eclipse.tracecompass.internal.analysis.graph.core.criticalpath.CriticalPathAlgorithmBounded;
@@ -24,6 +27,7 @@ import org.eclipse.tracecompass.internal.analysis.graph.core.criticalpath.Messag
 import org.eclipse.tracecompass.tmf.core.analysis.TmfAbstractAnalysisModule;
 import org.eclipse.tracecompass.tmf.core.exceptions.TmfAnalysisException;
 import org.eclipse.tracecompass.tmf.core.trace.ITmfTrace;
+import org.eclipse.tracecompass.tmf.core.util.Pair;
 
 /**
  * Class to implement the critical path analysis
@@ -81,12 +85,14 @@ public class CriticalPathModule extends TmfAbstractAnalysisModule implements ICr
             Activator.getInstance().logInfo("Critical path execution: graph building was cancelled.  Results may not be accurate."); //$NON-NLS-1$
             return false;
         }
+
         TmfGraph graph = graphModule.getGraph();
         if (graph == null) {
             throw new TmfAnalysisException("Critical Path analysis: graph " + graphModule.getName() + " is null"); //$NON-NLS-1$//$NON-NLS-2$
         }
 
         TmfVertex head = graph.getHead(worker);
+        Pair<List<EventKey>, List<Pair<Long, Long>>> patterns = graphModule.getPattern(12);
         if (head == null) {
             /* Nothing happens with this worker, return an empty graph */
             fCriticalPath = new TmfGraph();
@@ -95,6 +101,9 @@ public class CriticalPathModule extends TmfAbstractAnalysisModule implements ICr
 
         ICriticalPathAlgorithm cp = getAlgorithm(graph);
         try {
+            if (cp instanceof CriticalPathAlgorithmBounded) {
+                fCriticalPath = ((CriticalPathAlgorithmBounded) cp).compute2(head, null, patterns);
+            }
             fCriticalPath = cp.compute(head, null);
             return true;
         } catch (CriticalPathAlgorithmException e) {

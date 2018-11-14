@@ -9,22 +9,11 @@
 
 package org.eclipse.tracecompass.analysis.os.linux.core.realtime;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-
-import org.eclipse.tracecompass.analysis.os.linux.core.kernel.KernelTidAspect;
-import org.eclipse.tracecompass.analysis.os.linux.core.realtime.MANEPI.EventKey;
 import org.eclipse.tracecompass.tmf.core.event.ITmfEvent;
 import org.eclipse.tracecompass.tmf.core.event.TmfEvent;
 import org.eclipse.tracecompass.tmf.core.request.ITmfEventRequest;
 import org.eclipse.tracecompass.tmf.core.request.TmfEventRequest;
 import org.eclipse.tracecompass.tmf.core.timestamp.TmfTimeRange;
-import org.eclipse.tracecompass.tmf.core.trace.TmfTraceUtils;
-import org.eclipse.tracecompass.tmf.core.util.Pair;
 
 /**
  * Request to mine the pattern on a thread.
@@ -33,72 +22,36 @@ import org.eclipse.tracecompass.tmf.core.util.Pair;
  */
 public class KernelRealTimePatternRequest extends TmfEventRequest {
 
-    private Set<Integer> fSelectedThreadsID;
-
-    private Map<Integer, List<ITmfEvent>> fThreadsEventList;
-
-    private Map<Integer, List<Pair<List<EventKey>, List<Pair<Long, Long>>>>> fResults;
-
+    private RealTimePatternProvider fProvider;
     /**
      * Default constructor.
+     * @param provider
+     *          The Pattern provider used to extract patterns
      */
-    public KernelRealTimePatternRequest() {
+    public KernelRealTimePatternRequest(RealTimePatternProvider provider) {
         super(TmfEvent.class,
                 TmfTimeRange.ETERNITY,
                 0,
                 ITmfEventRequest.ALL_DATA,
                 ITmfEventRequest.ExecutionType.BACKGROUND);
 
-        fSelectedThreadsID = new HashSet<>();
-        fSelectedThreadsID.add(1234);
-
-        fThreadsEventList = new HashMap<>();
-        fResults = new HashMap<>();
+        fProvider = provider;
     }
 
     @Override
     public void handleData(final ITmfEvent event) {
         super.handleData(event);
-
-        // Resolve the KernelTidAspect to get the current TID for this event.
-        Object tidObj = TmfTraceUtils.resolveEventAspectOfClassForEvent(event.getTrace(), KernelTidAspect.class, event);
-        Integer tid = (tidObj != null && tidObj instanceof Integer) ? (Integer)tidObj : null;
-        if (tid == null) {
-            return;
-        }
-
-        // If we are not mining for this tid, exit.
-        if (!fSelectedThreadsID.contains(tid)) {
-            return;
-        }
-
-        // Add the event to the event list.
-        List<ITmfEvent> evList = fThreadsEventList.getOrDefault(tid, new ArrayList<>());
-        evList.add(event);
+        fProvider.processEvent(event);
     }
 
     @Override
     public synchronized void done() {
-
-        // Mine the patterns
-        for (Integer tid : fSelectedThreadsID) {
-            List<Pair<List<EventKey>, List<Pair<Long, Long>>>> pattern = MANEPI.compute(fThreadsEventList.getOrDefault(tid, new ArrayList<>()));
-            fResults.put(tid, pattern);
-        }
-
         super.done();
+        fProvider.done();
     }
 
     @Override
     public void handleCancel() {
         super.handleCancel();
-    }
-
-    /**
-     * Get the result after the request completed.
-     * Call after waitForCompletion()
-     */
-    public Map<Integer, List<Pair<List<EventKey>, List<Pair<Long, Long>>>>> getResult() {
-        return fResults;
     }
 }

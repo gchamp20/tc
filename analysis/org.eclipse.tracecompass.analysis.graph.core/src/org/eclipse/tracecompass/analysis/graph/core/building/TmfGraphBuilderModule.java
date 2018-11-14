@@ -9,12 +9,16 @@
 
 package org.eclipse.tracecompass.analysis.graph.core.building;
 
+import java.util.List;
+
 import org.eclipse.core.runtime.IProgressMonitor;
 import org.eclipse.jdt.annotation.NonNull;
 import org.eclipse.jdt.annotation.Nullable;
 import org.eclipse.tracecompass.analysis.graph.core.base.TmfGraph;
 import org.eclipse.tracecompass.analysis.graph.core.criticalpath.CriticalPathModule;
 import org.eclipse.tracecompass.analysis.graph.core.criticalpath.ICriticalPathProvider;
+import org.eclipse.tracecompass.analysis.os.linux.core.realtime.MANEPI$EventKey;
+import org.eclipse.tracecompass.analysis.os.linux.core.realtime.MANEPI.EventKey;
 import org.eclipse.tracecompass.internal.analysis.graph.core.Activator;
 import org.eclipse.tracecompass.tmf.core.analysis.TmfAbstractAnalysisModule;
 import org.eclipse.tracecompass.tmf.core.event.ITmfEvent;
@@ -24,6 +28,7 @@ import org.eclipse.tracecompass.tmf.core.request.ITmfEventRequest;
 import org.eclipse.tracecompass.tmf.core.request.TmfEventRequest;
 import org.eclipse.tracecompass.tmf.core.timestamp.TmfTimeRange;
 import org.eclipse.tracecompass.tmf.core.trace.ITmfTrace;
+import org.eclipse.tracecompass.tmf.core.util.Pair;
 
 /**
  * Base class for all modules building graphs
@@ -58,6 +63,18 @@ public abstract class TmfGraphBuilderModule extends TmfAbstractAnalysisModule im
      */
     public @Nullable TmfGraph getGraph() {
         return fGraph;
+    }
+
+    /**
+    *
+    * @param tid
+    *          Tid of the thread followed
+    * @return
+    *          A pattern
+    * @since 3.1
+    */
+    public @Nullable Pair<List<EventKey>, List<Pair<Long, Long>>> getPattern(Integer tid) {
+        return null;
     }
 
     // ------------------------------------------------------------------------

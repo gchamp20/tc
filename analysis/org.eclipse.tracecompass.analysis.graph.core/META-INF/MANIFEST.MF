@@ -22,5 +22,6 @@ Export-Package: org.eclipse.tracecompass.analysis.graph.core.base,
 Import-Package: com.google.common.annotations,
  com.google.common.cache,
  com.google.common.collect,
- com.google.common.hash
+ com.google.common.hash,
+ org.eclipse.tracecompass.analysis.os.linux.core.realtime
 Automatic-Module-Name: org.eclipse.tracecompass.analysis.graph.core

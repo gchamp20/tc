@@ -24,6 +24,8 @@ import org.eclipse.tracecompass.analysis.graph.core.base.TmfGraph;
 import org.eclipse.tracecompass.analysis.graph.core.base.TmfVertex;
 import org.eclipse.tracecompass.analysis.graph.core.base.TmfVertex.EdgeDirection;
 import org.eclipse.tracecompass.analysis.graph.core.criticalpath.CriticalPathAlgorithmException;
+import org.eclipse.tracecompass.analysis.os.linux.core.realtime.MANEPI.EventKey;
+import org.eclipse.tracecompass.tmf.core.util.Pair;
 
 /**
  * Critical path bounded algorithm: backward resolution of blocking limited to
@@ -46,6 +48,23 @@ public class CriticalPathAlgorithmBounded extends AbstractCriticalPathAlgorithm 
      */
     public CriticalPathAlgorithmBounded(TmfGraph graph) {
         super(graph);
+    }
+
+    /**
+     *
+     * @param start
+     *          Mi
+     * @param end
+     *          Mo
+     * @param pattern
+     *          Sa
+     * @return
+     *      Graph
+     * @throws CriticalPathAlgorithmException
+     *              Ye
+     */
+    public TmfGraph compute2(TmfVertex start, @Nullable TmfVertex end, Pair<List<EventKey>, List<Pair<Long, Long>>> pattern) throws CriticalPathAlgorithmException {
+        return null
     }
 
     @Override
