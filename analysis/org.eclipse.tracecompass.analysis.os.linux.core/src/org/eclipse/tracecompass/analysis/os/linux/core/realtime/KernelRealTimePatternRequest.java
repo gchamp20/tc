@@ -19,6 +19,7 @@ import org.eclipse.tracecompass.tmf.core.timestamp.TmfTimeRange;
  * Request to mine the pattern on a thread.
  *
  * @author Guillaume Champagne
+ * @since 3.1
  */
 public class KernelRealTimePatternRequest extends TmfEventRequest {
 

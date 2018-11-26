@@ -14,9 +14,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
-import java.util.Objects;
-
-import org.eclipse.jdt.annotation.Nullable;
+import org.eclipse.tracecompass.analysis.graph.core.building.EventKey;
 import org.eclipse.tracecompass.tmf.core.event.ITmfEvent;
 import org.eclipse.tracecompass.tmf.core.util.Pair;
 
@@ -28,7 +26,7 @@ import org.eclipse.tracecompass.tmf.core.util.Pair;
  * In Data mining (ICDM), 2010 IEEE 10th international conference on (pp. 1211-1216). IEEE.
  *
  * @author Guillaume Champagne
- * @since 2.1
+ * @since 3.1
  */
 public class MANEPI {
 
@@ -90,33 +88,6 @@ public class MANEPI {
         }
     }
 
-    public static class EventKey {
-        private String evName;
-
-        public EventKey(ITmfEvent e) {
-            evName = e.getName();
-        }
-
-        @Override
-        public boolean equals(@Nullable Object o) {
-            if (o == this) {
-                return true;
-            }
-            if (!(o instanceof EventKey)) {
-                return false;
-            }
-
-            EventKey e = (EventKey)o;
-            return  e.evName.equals(evName);
-        }
-
-        @Override
-        public int hashCode() {
-            return Objects.hash(evName);
-        }
-
-    }
-
     private static Map<EventKey, List<Pair<Long, Long>>> fOneEpisodeOccurences = new HashMap<>();
 
     private static final int TRESH = 8;
@@ -167,7 +138,7 @@ public class MANEPI {
     }
 
     private static void mineGrow(FEPT node, List<EventKey> oneEpisodes) {
-        if (node.fLabel.size() > 1) {
+        if (node.fLabel.size() > 4) {
             return;
         }
 

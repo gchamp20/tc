@@ -14,8 +14,10 @@ import static org.eclipse.tracecompass.common.core.NonNullUtils.checkNotNull;
 import java.util.ArrayDeque;
 import java.util.Collections;
 import java.util.Deque;
+import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Set;
 
 import org.eclipse.jdt.annotation.Nullable;
 import org.eclipse.tracecompass.analysis.graph.core.base.IGraphWorker;
@@ -24,7 +26,6 @@ import org.eclipse.tracecompass.analysis.graph.core.base.TmfGraph;
 import org.eclipse.tracecompass.analysis.graph.core.base.TmfVertex;
 import org.eclipse.tracecompass.analysis.graph.core.base.TmfVertex.EdgeDirection;
 import org.eclipse.tracecompass.analysis.graph.core.criticalpath.CriticalPathAlgorithmException;
-import org.eclipse.tracecompass.analysis.os.linux.core.realtime.MANEPI.EventKey;
 import org.eclipse.tracecompass.tmf.core.util.Pair;
 
 /**
@@ -63,8 +64,100 @@ public class CriticalPathAlgorithmBounded extends AbstractCriticalPathAlgorithm 
      * @throws CriticalPathAlgorithmException
      *              Ye
      */
-    public TmfGraph compute2(TmfVertex start, @Nullable TmfVertex end, Pair<List<EventKey>, List<Pair<Long, Long>>> pattern) throws CriticalPathAlgorithmException {
-        return null
+    public @Nullable TmfGraph compute2(TmfVertex start, @Nullable TmfVertex end, List<Pair<Long, Long>> pattern) throws CriticalPathAlgorithmException {
+
+        /* Create new graph for the critical path result */
+        TmfGraph criticalPath = new TmfGraph();
+
+        /* Get the main graph from which to get critical path */
+        TmfGraph graph = getGraph();
+
+        /*
+         * Calculate path starting from the object the start vertex belongs to
+         */
+        IGraphWorker parent = checkNotNull(graph.getParentOf(start));
+        criticalPath.add(parent, new TmfVertex(start));
+        Deque<TmfVertex> stack = new ArrayDeque<>();
+        Set<IGraphWorker> visitedWorkers = new HashSet<>();
+        stack.push(start);
+        visitedWorkers.add(parent);
+
+        /* We set the end time at the end of the first job for now */
+        long endTime = pattern.get(0).getSecond();
+
+        while (!stack.isEmpty()) {
+            // glue with last vertex
+            TmfVertex currentVertex = stack.pop();
+            TmfEdge nextEdge = currentVertex.getEdge(EdgeDirection.OUTGOING_HORIZONTAL_EDGE);
+
+            TmfEdge criticalPathEdge = null;
+
+            /*
+             * Run through all horizontal edges from this object and resolve each
+             * blocking as they come
+             */
+            while (nextEdge != null) {
+
+
+                TmfVertex nextVertex = nextEdge.getVertexTo();
+                if (nextVertex.getTs() >= endTime) {
+                    break;
+                }
+
+                TmfEdge verticalEdge = currentVertex.getEdge(EdgeDirection.OUTGOING_VERTICAL_EDGE);
+                if (verticalEdge != null) {
+                    // Check if worker was not already visited
+                    IGraphWorker parentTo = checkNotNull(graph.getParentOf(verticalEdge.getVertexTo()));
+                    if (!visitedWorkers.contains(parentTo)) {
+                        stack.push(verticalEdge.getVertexTo());
+                        visitedWorkers.add(parentTo);
+                        // add this vertex in the graph
+                        if (criticalPathEdge != null) {
+                            criticalPath.append(parentTo, new TmfVertex(verticalEdge.getVertexTo()), verticalEdge.getType(), verticalEdge.getLinkQualifier());
+                            TmfVertex newVertex = criticalPath.getHead(parentTo);
+                            criticalPath.link(criticalPathEdge.getVertexTo(), newVertex);
+                        }
+                    }
+                }
+
+                switch (nextEdge.getType()) {
+                case IPI:
+                case USER_INPUT:
+                case BLOCK_DEVICE:
+                case TIMER:
+                case INTERRUPTED:
+                case PREEMPTED:
+                case RUNNING:
+                case NETWORK:
+                case BLOCKED:
+                    /**
+                     * This edge is not blocked, so nothing to resolve, just add the
+                     * edge to the critical path
+                     */
+                    /**
+                     * TODO: Normally, the parent of the link's vertex to should be
+                     * the object itself, verify if that is true
+                     */
+                    IGraphWorker parentTo = checkNotNull(graph.getParentOf(nextEdge.getVertexTo()));
+                    criticalPathEdge = criticalPath.append(parentTo, new TmfVertex(nextEdge.getVertexTo()), nextEdge.getType(), nextEdge.getLinkQualifier());
+                    break;
+                case EPS:
+                    if (nextEdge.getDuration() != 0) {
+                        throw new CriticalPathAlgorithmException("epsilon duration is not zero " + nextEdge); //$NON-NLS-1$
+                    }
+                    break;
+                case DEFAULT:
+                    throw new CriticalPathAlgorithmException("Illegal link type " + nextEdge.getType()); //$NON-NLS-1$
+                case UNKNOWN:
+                default:
+                    break;
+                }
+
+                currentVertex = nextVertex;
+                nextEdge = currentVertex.getEdge(EdgeDirection.OUTGOING_HORIZONTAL_EDGE);
+            }
+        }
+        return criticalPath;
     }
 
     @Override

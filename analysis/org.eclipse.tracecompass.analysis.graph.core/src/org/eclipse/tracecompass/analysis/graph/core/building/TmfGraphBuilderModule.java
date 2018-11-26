@@ -17,8 +17,6 @@ import org.eclipse.jdt.annotation.Nullable;
 import org.eclipse.tracecompass.analysis.graph.core.base.TmfGraph;
 import org.eclipse.tracecompass.analysis.graph.core.criticalpath.CriticalPathModule;
 import org.eclipse.tracecompass.analysis.graph.core.criticalpath.ICriticalPathProvider;
-import org.eclipse.tracecompass.analysis.os.linux.core.realtime.MANEPI$EventKey;
-import org.eclipse.tracecompass.analysis.os.linux.core.realtime.MANEPI.EventKey;
 import org.eclipse.tracecompass.internal.analysis.graph.core.Activator;
 import org.eclipse.tracecompass.tmf.core.analysis.TmfAbstractAnalysisModule;
 import org.eclipse.tracecompass.tmf.core.event.ITmfEvent;
@@ -71,9 +69,9 @@ public abstract class TmfGraphBuilderModule extends TmfAbstractAnalysisModule im
     *          Tid of the thread followed
     * @return
     *          A pattern
-    * @since 3.1
+    * @since 2.2
     */
-    public @Nullable Pair<List<EventKey>, List<Pair<Long, Long>>> getPattern(Integer tid) {
+    public @Nullable List<Pair<Long, Long>> getPattern(Integer tid) {
         return null;
     }
 

@@ -19,7 +19,6 @@ import org.eclipse.tracecompass.analysis.graph.core.base.IGraphWorker;
 import org.eclipse.tracecompass.analysis.graph.core.base.TmfGraph;
 import org.eclipse.tracecompass.analysis.graph.core.base.TmfVertex;
 import org.eclipse.tracecompass.analysis.graph.core.building.TmfGraphBuilderModule;
-import org.eclipse.tracecompass.analysis.os.linux.core.realtime.MANEPI.EventKey;
 import org.eclipse.tracecompass.common.core.NonNullUtils;
 import org.eclipse.tracecompass.internal.analysis.graph.core.Activator;
 import org.eclipse.tracecompass.internal.analysis.graph.core.criticalpath.CriticalPathAlgorithmBounded;
@@ -92,7 +91,7 @@ public class CriticalPathModule extends TmfAbstractAnalysisModule implements ICr
         }
 
         TmfVertex head = graph.getHead(worker);
-        Pair<List<EventKey>, List<Pair<Long, Long>>> patterns = graphModule.getPattern(12);
+       List<Pair<Long, Long>> patterns = graphModule.getPattern(2792);
         if (head == null) {
             /* Nothing happens with this worker, return an empty graph */
             fCriticalPath = new TmfGraph();
@@ -103,6 +102,7 @@ public class CriticalPathModule extends TmfAbstractAnalysisModule implements ICr
         try {
             if (cp instanceof CriticalPathAlgorithmBounded) {
                 fCriticalPath = ((CriticalPathAlgorithmBounded) cp).compute2(head, null, patterns);
+                return true;
             }
             fCriticalPath = cp.compute(head, null);
             return true;
