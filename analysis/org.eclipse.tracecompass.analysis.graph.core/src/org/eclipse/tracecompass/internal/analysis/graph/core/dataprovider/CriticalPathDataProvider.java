@@ -399,8 +399,9 @@ public class CriticalPathDataProvider extends AbstractTmfTraceDataProvider imple
         case EPS:
         case UNKNOWN:
         case DEFAULT:
+        break;
         case BLOCKED:
-            break;
+            return 11;
         default:
             break;
         }

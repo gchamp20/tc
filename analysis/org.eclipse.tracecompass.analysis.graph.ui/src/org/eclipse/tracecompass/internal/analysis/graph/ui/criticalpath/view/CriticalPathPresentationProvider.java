@@ -66,7 +66,9 @@ public class CriticalPathPresentationProvider extends TimeGraphPresentationProvi
         /** Network communication arrow*/
         NETWORK_ARROW(new RGB(0xff, 0x9b, 0xff)),
         /** Unknown arrow*/
-        UNKNOWN_ARROW(new RGB(0x40, 0x3b, 0x33));
+        UNKNOWN_ARROW(new RGB(0x40, 0x3b, 0x33)),
+        /** Blocked state */
+        BLOCKED(new RGB(0xC8, 0xC8, 0x00));
 
         /** RGB color associated with a state */
         public final RGB rgb;
@@ -100,6 +102,8 @@ public class CriticalPathPresentationProvider extends TimeGraphPresentationProvi
             } else if (state.equals(State.UNKNOWN_ARROW)) {
                 unknownNetworkIndex = i;
                 heightFactor = 0.1f;
+            } else if (state.equals(State.BLOCKED)) {
+                heightFactor = 0.33f;
             }
 
             RGB stateColor = state.rgb;
