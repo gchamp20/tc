@@ -48,6 +48,8 @@ public class CriticalPathModule extends TmfAbstractAnalysisModule implements ICr
 
     private volatile @Nullable TmfGraph fCriticalPath;
 
+    private volatile @Nullable List<TmfGraph> fOccurences;
+
     /**
      * Default constructor
      *
@@ -101,7 +103,7 @@ public class CriticalPathModule extends TmfAbstractAnalysisModule implements ICr
         ICriticalPathAlgorithm cp = getAlgorithm(graph);
         try {
             if (cp instanceof CriticalPathAlgorithmBounded) {
-                fCriticalPath = ((CriticalPathAlgorithmBounded) cp).compute2(head, null, patterns);
+                fOccurences = ((CriticalPathAlgorithmBounded) cp).compute2(head, null, patterns);
                 return true;
             }
             fCriticalPath = cp.compute(head, null);
@@ -146,6 +148,16 @@ public class CriticalPathModule extends TmfAbstractAnalysisModule implements ICr
     @Override
     public @Nullable TmfGraph getCriticalPath() {
         return fCriticalPath;
+    }
+
+    /**
+     * Get the occurences of a pattern.
+     *
+     * @return
+     *      A list with a graph of each occurence of the pattern
+     */
+    public @Nullable List<TmfGraph> getPatternOccurences() {
+        return fOccurences;
     }
 
     @Override
