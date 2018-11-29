@@ -20,11 +20,14 @@ import org.apache.commons.lang3.StringUtils;
 import org.eclipse.core.runtime.IProgressMonitor;
 import org.eclipse.jdt.annotation.NonNull;
 import org.eclipse.jdt.annotation.Nullable;
+import org.eclipse.jface.action.Action;
 import org.eclipse.jface.action.IAction;
 import org.eclipse.jface.action.IMenuManager;
 import org.eclipse.jface.action.IToolBarManager;
+import org.eclipse.jface.dialogs.InputDialog;
 import org.eclipse.jface.viewers.ISelection;
 import org.eclipse.jface.viewers.StructuredSelection;
+import org.eclipse.swt.widgets.Shell;
 import org.eclipse.tracecompass.analysis.graph.core.criticalpath.CriticalPathModule;
 import org.eclipse.tracecompass.internal.analysis.graph.core.dataprovider.CriticalPathDataProvider;
 import org.eclipse.tracecompass.internal.analysis.graph.core.dataprovider.CriticalPathEntry;
@@ -66,6 +69,15 @@ import com.google.common.collect.Table;
  * @author Francis Giraldeau
  */
 public class CriticalPathView extends BaseDataProviderTimeGraphView {
+
+    private final class DeadlineFilterAction extends Action {
+        @Override
+        public void run() {
+            Shell shell = getSite().getWorkbenchWindow().getShell();
+            InputDialog dlg = new InputDialog(shell, "U gay?", "Ye", "0", null);
+            dlg.open();
+        }
+    }
 
     // ------------------------------------------------------------------------
     // Constants
@@ -332,6 +344,9 @@ public class CriticalPathView extends BaseDataProviderTimeGraphView {
         followArrowFwdAction.setText(Messages.CriticalPathView_followArrowFwdText);
         followArrowFwdAction.setToolTipText(Messages.CriticalPathView_followArrowFwdText);
         manager.appendToGroup(IWorkbenchActionConstants.MB_ADDITIONS, followArrowFwdAction);
+
+        IAction deadline = new DeadlineFilterAction();
+        manager.appendToGroup(IWorkbenchActionConstants.MB_ADDITIONS, deadline);
     }
 
     @Override

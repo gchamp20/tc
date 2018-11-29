@@ -141,7 +141,7 @@ public class CriticalPathDataProvider extends AbstractTmfTraceDataProvider imple
         List<CriticalPathEntry> entries = new ArrayList<>();
 
         // create host entry
-        //Long start = getTrace().getStartTime().toNanos();
+        Long start = getTrace().getStartTime().toNanos();
         // Long end = getTrace().getEndTime().toNanos();
         IGraphWorker owner = graph.getParentOf(head);
 
@@ -164,7 +164,7 @@ public class CriticalPathDataProvider extends AbstractTmfTraceDataProvider imple
             entries.add(new CriticalPathEntry(occId, parentId, "Occ " + String.valueOf(i), getTrace().getStartTime().toNanos(), occEnd,
                     0L, 0.0, 0L));
             entries.addAll(locEntry);
-
+            System.out.println(String.valueOf(occEnd - start));
             maxEnd = Long.max(occEnd, maxEnd);
             i += 1;
         }
