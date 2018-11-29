@@ -27,6 +27,7 @@ import org.eclipse.jface.action.IToolBarManager;
 import org.eclipse.jface.dialogs.InputDialog;
 import org.eclipse.jface.viewers.ISelection;
 import org.eclipse.jface.viewers.StructuredSelection;
+import org.eclipse.jface.window.Window;
 import org.eclipse.swt.widgets.Shell;
 import org.eclipse.tracecompass.analysis.graph.core.criticalpath.CriticalPathModule;
 import org.eclipse.tracecompass.internal.analysis.graph.core.dataprovider.CriticalPathDataProvider;
@@ -34,6 +35,7 @@ import org.eclipse.tracecompass.internal.analysis.graph.core.dataprovider.Critic
 import org.eclipse.tracecompass.internal.tmf.ui.Activator;
 import org.eclipse.tracecompass.tmf.core.analysis.IAnalysisModule;
 import org.eclipse.tracecompass.tmf.core.dataprovider.DataProviderManager;
+import org.eclipse.tracecompass.tmf.core.model.filters.SelectedDeadLineTimQueryFilter;
 import org.eclipse.tracecompass.tmf.core.model.filters.TimeQueryFilter;
 import org.eclipse.tracecompass.tmf.core.model.timegraph.ITimeGraphArrow;
 import org.eclipse.tracecompass.tmf.core.model.timegraph.ITimeGraphDataProvider;
@@ -70,12 +72,22 @@ import com.google.common.collect.Table;
  */
 public class CriticalPathView extends BaseDataProviderTimeGraphView {
 
+    private Long fDeadlineUS;
+
     private final class DeadlineFilterAction extends Action {
         @Override
         public void run() {
             Shell shell = getSite().getWorkbenchWindow().getShell();
-            InputDialog dlg = new InputDialog(shell, "U gay?", "Ye", "0", null);
-            dlg.open();
+            InputDialog dlg = new InputDialog(shell, "Deadline filter", "Enter 0 for no deadline filter", "0", null);
+            if (dlg.open() == Window.OK) {
+                try {
+                    Long nb = Long.parseLong(dlg.getValue());
+                    fDeadlineUS = nb;
+                    rebuild();
+                } catch(Exception e) {
+
+                }
+            }
         }
     }
 
@@ -148,6 +160,7 @@ public class CriticalPathView extends BaseDataProviderTimeGraphView {
         setTreeLabelProvider(new CriticalPathTreeLabelProvider());
         setEntryComparator(new CriticalPathEntryComparator());
         setLegendProvider((shell, presentationProvider) -> new CriticalPathLegend(shell, presentationProvider).open());
+        fDeadlineUS = 0L;
     }
 
     /**
@@ -174,7 +187,13 @@ public class CriticalPathView extends BaseDataProviderTimeGraphView {
         }
         boolean complete = false;
         while (!complete && !monitor.isCanceled()) {
-            TmfModelResponse<List<TimeGraphEntryModel>> response = dataProvider.fetchTree(new TimeQueryFilter(0, Long.MAX_VALUE, 2), monitor);
+            TmfModelResponse<List<TimeGraphEntryModel>> response;
+            if (fDeadlineUS == 0) {
+                response = dataProvider.fetchTree(new TimeQueryFilter(0, Long.MAX_VALUE, 2), monitor);
+            } else {
+                response = dataProvider.fetchTree(new SelectedDeadLineTimQueryFilter(0, Long.MAX_VALUE, 2,
+                        fDeadlineUS * 1000), monitor);
+            }
             if (response.getStatus() == ITmfResponse.Status.FAILED) {
                 Activator.getDefault().logError(getClass().getSimpleName() + " Data Provider failed: " + response.getStatusMessage()); //$NON-NLS-1$
                 return;

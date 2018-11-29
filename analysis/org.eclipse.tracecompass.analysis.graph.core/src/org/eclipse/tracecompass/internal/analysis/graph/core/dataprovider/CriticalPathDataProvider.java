@@ -35,6 +35,7 @@ import org.eclipse.tracecompass.internal.analysis.graph.core.base.TmfGraphVisito
 import org.eclipse.tracecompass.internal.tmf.core.model.AbstractTmfTraceDataProvider;
 import org.eclipse.tracecompass.internal.tmf.core.model.filters.TimeGraphStateQueryFilter;
 import org.eclipse.tracecompass.tmf.core.model.CommonStatusMessage;
+import org.eclipse.tracecompass.tmf.core.model.filters.SelectedDeadLineTimQueryFilter;
 import org.eclipse.tracecompass.tmf.core.model.filters.SelectionTimeQueryFilter;
 import org.eclipse.tracecompass.tmf.core.model.filters.TimeQueryFilter;
 import org.eclipse.tracecompass.tmf.core.model.timegraph.ITimeGraphArrow;
@@ -77,7 +78,7 @@ public class CriticalPathDataProvider extends AbstractTmfTraceDataProvider imple
     /**
      * Remember the unique mappings from hosts to their entry IDs
      */
-    private final Map<String, Long> fHostIdToEntryId = new HashMap<>();
+    // private final Map<String, Long> fHostIdToEntryId = new HashMap<>();
 
     private final LoadingCache<IGraphWorker, List<CriticalPathVisitor>> fHorizontalVisitorCache = CacheBuilder.newBuilder()
             .maximumSize(10).build(new CacheLoader<IGraphWorker, List<CriticalPathVisitor>>() {
@@ -117,6 +118,12 @@ public class CriticalPathDataProvider extends AbstractTmfTraceDataProvider imple
     @Override
     public synchronized @NonNull TmfModelResponse<@NonNull List<@NonNull CriticalPathEntry>> fetchTree(
             @NonNull TimeQueryFilter filter, @Nullable IProgressMonitor monitor) {
+
+        long deadline = 0;
+        if (filter instanceof SelectedDeadLineTimQueryFilter) {
+            deadline = ((SelectedDeadLineTimQueryFilter)filter).getDeadlineInNs();
+        }
+
         List<TmfGraph> graphs = fCriticalPathModule.getPatternOccurences();
         if (graphs == null) {
             return new TmfModelResponse<>(null, Status.RUNNING, CommonStatusMessage.RUNNING);
@@ -151,7 +158,8 @@ public class CriticalPathDataProvider extends AbstractTmfTraceDataProvider imple
 
         String host = owner.getHostId();
 
-        long parentId = fHostIdToEntryId.computeIfAbsent(host, h -> ATOMIC_LONG.getAndIncrement());
+        // long parentId = fHostIdToEntryId.computeIfAbsent(host, h -> ATOMIC_LONG.getAndIncrement());
+        long parentId = ATOMIC_LONG.getAndIncrement();
 
         long maxEnd = Long.MIN_VALUE;
 
@@ -161,11 +169,14 @@ public class CriticalPathDataProvider extends AbstractTmfTraceDataProvider imple
             Long occId = ATOMIC_LONG.getAndIncrement();
             List<CriticalPathEntry> locEntry = v.getEntries(occId);
             Long occEnd = v.getFurthest();
-            entries.add(new CriticalPathEntry(occId, parentId, "Occ " + String.valueOf(i), getTrace().getStartTime().toNanos(), occEnd,
-                    0L, 0.0, 0L));
-            entries.addAll(locEntry);
-            System.out.println(String.valueOf(occEnd - start));
-            maxEnd = Long.max(occEnd, maxEnd);
+            Long execTime = occEnd - start;
+            if (execTime > deadline || deadline == 0) {
+                entries.add(new CriticalPathEntry(occId, parentId, "Occ " + String.valueOf(i), getTrace().getStartTime().toNanos(), occEnd,
+                        0L, 0.0, 0L));
+                entries.addAll(locEntry);
+                System.out.println(String.valueOf(occEnd - start));
+                maxEnd = Long.max(occEnd, maxEnd);
+            }
             i += 1;
         }
 
@@ -385,6 +396,10 @@ public class CriticalPathDataProvider extends AbstractTmfTraceDataProvider imple
         }
 
         public @NonNull List<@NonNull CriticalPathEntry> getEntries(Long parentId) {
+            if (fWorkers.size() != 0) {
+                fWorkers.clear();
+            }
+
             fParentId = parentId;
             fGraph.scanLineTraverse(fGraph.getHead(), this);
             List<@NonNull CriticalPathEntry> list = new ArrayList<>();
