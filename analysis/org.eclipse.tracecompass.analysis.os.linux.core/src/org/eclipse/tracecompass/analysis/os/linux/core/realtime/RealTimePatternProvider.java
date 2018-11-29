@@ -31,7 +31,9 @@ import com.google.common.collect.ImmutableList;
  */
 public class RealTimePatternProvider {
 
-    private static class EntryPPollState implements IState {
+    private static final int fTID = 27889;
+
+    /* private static class EntryPPollState implements IState {
         @Override
         public boolean checkIncomingCondition(ITmfEvent event) {
             if (!event.getName().equals("syscall_entry_ppoll")) {
@@ -45,9 +47,9 @@ public class RealTimePatternProvider {
                 return false;
             }
 
-            return tid == 2792;
+            return tid == fTID;
         }
-    }
+    } */
 
     private static class HRTimerStart implements IState {
         @Override
@@ -63,7 +65,7 @@ public class RealTimePatternProvider {
                 return false;
             }
 
-            return tid == 2792;
+            return tid == fTID;
         }
     }
 
@@ -101,7 +103,7 @@ public class RealTimePatternProvider {
                 return false;
             }
 
-            return tid == 2792;
+            return tid == fTID;
         }
     }
 
@@ -120,7 +122,7 @@ public class RealTimePatternProvider {
 
             Long tid = (Long)objWrapper;
 
-            return tid == 2792L;
+            return tid == fTID;
         }
     }
 
@@ -139,7 +141,7 @@ public class RealTimePatternProvider {
 
             Long tid = (Long)objWrapper;
 
-            return tid == 2792L;
+            return tid == fTID;
         }
     }
 
@@ -174,7 +176,6 @@ public class RealTimePatternProvider {
         builder.add(new SchedWakeupState());
         builder.add(new HRTimerExpireStateExit());
         builder.add(new SchedSwitchTo());
-        builder.add(new EntryPPollState());
         builder.add(new HRTimerStart());
         builder.add(new SchedSwitchFrom());
 

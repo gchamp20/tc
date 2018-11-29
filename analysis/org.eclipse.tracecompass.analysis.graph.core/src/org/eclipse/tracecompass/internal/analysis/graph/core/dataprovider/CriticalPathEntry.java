@@ -29,6 +29,7 @@ public class CriticalPathEntry extends TimeGraphEntryModel implements IFilterabl
     private final Long fSum;
     private final Double fPercent;
     private final @NonNull Multimap<@NonNull String, @NonNull String> fAspects = HashMultimap.create();
+    private final Long fOrignalStart;
 
     /**
      * Constructor
@@ -51,7 +52,7 @@ public class CriticalPathEntry extends TimeGraphEntryModel implements IFilterabl
      *            {@link IGraphWorker}
      */
     public CriticalPathEntry(long id, long parentId, IGraphWorker worker,
-            long startTime, long endTime, Long sum, Double percent) {
+            long startTime, long endTime, Long sum, Double percent, Long originalStart) {
         super(id, parentId, String.valueOf(worker), startTime, endTime);
         fSum = sum;
         fPercent = percent;
@@ -59,6 +60,8 @@ public class CriticalPathEntry extends TimeGraphEntryModel implements IFilterabl
         for (Entry<String, String> entry : worker.getWorkerInformation().entrySet()) {
             fAspects.put(entry.getKey(), entry.getValue());
         }
+
+        fOrignalStart = originalStart;
     }
 
     /**
@@ -82,10 +85,11 @@ public class CriticalPathEntry extends TimeGraphEntryModel implements IFilterabl
      *            {@link IGraphWorker}
      */
     public CriticalPathEntry(long id, long parentId, @NonNull String name,
-            long startTime, long endTime, Long sum, Double percent) {
+            long startTime, long endTime, Long sum, Double percent, Long originalStart) {
         super(id, parentId, name, startTime, endTime);
         fSum = sum;
         fPercent = percent;
+        fOrignalStart = originalStart;
     }
 
     /**
@@ -104,6 +108,15 @@ public class CriticalPathEntry extends TimeGraphEntryModel implements IFilterabl
      */
     public Double getPercent() {
         return fPercent;
+    }
+
+    /**
+     * Getter for the {@link TmfGraphStatistics} percentage for this entry
+     *
+     * @return statistics percentage for this entry
+     */
+    public Long getOriginalStart() {
+        return fOrignalStart;
     }
 
     @Override

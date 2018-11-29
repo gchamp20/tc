@@ -21,19 +21,28 @@ import org.eclipse.core.runtime.IProgressMonitor;
 import org.eclipse.jdt.annotation.NonNull;
 import org.eclipse.jdt.annotation.Nullable;
 import org.eclipse.jface.action.IAction;
+import org.eclipse.jface.action.IMenuManager;
 import org.eclipse.jface.action.IToolBarManager;
+import org.eclipse.jface.viewers.ISelection;
+import org.eclipse.jface.viewers.StructuredSelection;
 import org.eclipse.tracecompass.analysis.graph.core.criticalpath.CriticalPathModule;
 import org.eclipse.tracecompass.internal.analysis.graph.core.dataprovider.CriticalPathDataProvider;
 import org.eclipse.tracecompass.internal.analysis.graph.core.dataprovider.CriticalPathEntry;
+import org.eclipse.tracecompass.internal.tmf.ui.Activator;
 import org.eclipse.tracecompass.tmf.core.analysis.IAnalysisModule;
+import org.eclipse.tracecompass.tmf.core.dataprovider.DataProviderManager;
 import org.eclipse.tracecompass.tmf.core.model.filters.TimeQueryFilter;
 import org.eclipse.tracecompass.tmf.core.model.timegraph.ITimeGraphArrow;
 import org.eclipse.tracecompass.tmf.core.model.timegraph.ITimeGraphDataProvider;
 import org.eclipse.tracecompass.tmf.core.model.timegraph.ITimeGraphEntryModel;
 import org.eclipse.tracecompass.tmf.core.model.timegraph.ITimeGraphState;
+import org.eclipse.tracecompass.tmf.core.model.timegraph.TimeGraphEntryModel;
+import org.eclipse.tracecompass.tmf.core.response.ITmfResponse;
 import org.eclipse.tracecompass.tmf.core.response.TmfModelResponse;
+import org.eclipse.tracecompass.tmf.core.signal.TmfSelectionRangeUpdatedSignal;
 import org.eclipse.tracecompass.tmf.core.signal.TmfSignalHandler;
 import org.eclipse.tracecompass.tmf.core.signal.TmfStartAnalysisSignal;
+import org.eclipse.tracecompass.tmf.core.signal.TmfWindowRangeUpdatedSignal;
 import org.eclipse.tracecompass.tmf.core.trace.ITmfTrace;
 import org.eclipse.tracecompass.tmf.core.trace.TmfTraceManager;
 import org.eclipse.tracecompass.tmf.ui.views.timegraph.BaseDataProviderTimeGraphView;
@@ -127,6 +136,113 @@ public class CriticalPathView extends BaseDataProviderTimeGraphView {
         setTreeLabelProvider(new CriticalPathTreeLabelProvider());
         setEntryComparator(new CriticalPathEntryComparator());
         setLegendProvider((shell, presentationProvider) -> new CriticalPathLegend(shell, presentationProvider).open());
+    }
+
+    /**
+     * @since 2.0
+     */
+    @Override
+    protected void fillTimeGraphEntryContextMenu(@NonNull IMenuManager menuManager) {
+        ISelection selection = getSite().getSelectionProvider().getSelection();
+        if (selection instanceof StructuredSelection) {
+            StructuredSelection sSel = (StructuredSelection) selection;
+            if (sSel.getFirstElement() instanceof CriticalPathUiEntry) {
+                CriticalPathUiEntry entry = (CriticalPathUiEntry) sSel.getFirstElement();
+                menuManager.add(new SyncToOccurenceSourceAction(CriticalPathView.this, entry.getOriginalTime()));
+            }
+        }
+    }
+
+    @Override
+    protected void buildEntryList(@NonNull ITmfTrace trace, @NonNull ITmfTrace parentTrace, @NonNull IProgressMonitor monitor) {
+        ITimeGraphDataProvider<@NonNull TimeGraphEntryModel> dataProvider = DataProviderManager
+                .getInstance().getDataProvider(trace, getProviderId(), ITimeGraphDataProvider.class);
+        if (dataProvider == null) {
+            return;
+        }
+        boolean complete = false;
+        while (!complete && !monitor.isCanceled()) {
+            TmfModelResponse<List<TimeGraphEntryModel>> response = dataProvider.fetchTree(new TimeQueryFilter(0, Long.MAX_VALUE, 2), monitor);
+            if (response.getStatus() == ITmfResponse.Status.FAILED) {
+                Activator.getDefault().logError(getClass().getSimpleName() + " Data Provider failed: " + response.getStatusMessage()); //$NON-NLS-1$
+                return;
+            } else if (response.getStatus() == ITmfResponse.Status.CANCELLED) {
+                return;
+            }
+            complete = response.getStatus() == ITmfResponse.Status.COMPLETED;
+
+            List<TimeGraphEntryModel> model = response.getModel();
+            if (model != null) {
+                synchronized (fEntries) {
+                    for (TimeGraphEntryModel entry : model) {
+                        TimeGraphEntry uiEntry = fEntries.get(dataProvider, entry.getId());
+                        if (entry.getParentId() != -1) {
+                            if (uiEntry == null) {
+                                uiEntry = new CriticalPathUiEntry((CriticalPathEntry)entry);
+                                TimeGraphEntry parent = fEntries.get(dataProvider, entry.getParentId());
+                                if (parent != null) {
+                                    parent.addChild(uiEntry);
+                                }
+                                fEntries.put(dataProvider, entry.getId(), (uiEntry));
+                            } else {
+                                uiEntry.updateModel(entry);
+                            }
+                        } else {
+                            setStartTime(Long.min(getStartTime(), entry.getStartTime()));
+                            setEndTime(Long.max(getEndTime(), entry.getEndTime() + 1));
+
+                            if (uiEntry != null) {
+                                uiEntry.updateModel(entry);
+                            } else {
+                                uiEntry = new TraceEntry(entry, trace, dataProvider);
+                                fEntries.put(dataProvider, entry.getId(), uiEntry);
+                                addToEntryList(parentTrace, Collections.singletonList(uiEntry));
+                            }
+                        }
+                    }
+                }
+                long start = getStartTime();
+                long end = getEndTime();
+                final long resolution = Long.max(1, (end - start) / getDisplayWidth());
+                zoomEntries(fEntries.values(), start, end, resolution, monitor);
+            }
+
+            if (monitor.isCanceled()) {
+                return;
+            }
+
+            if (parentTrace.equals(getTrace())) {
+                synchingToTime(getTimeGraphViewer().getSelectionBegin());
+                refresh();
+            }
+            monitor.worked(1);
+
+            if (!complete && !monitor.isCanceled()) {
+                try {
+                    Thread.sleep(BUILD_UPDATE_TIMEOUT);
+                } catch (InterruptedException e) {
+                    Activator.getDefault().logError("Failed to wait for data provider", e); //$NON-NLS-1$
+                }
+            }
+        }
+    }
+
+    /**
+     * Handler for the selection range signal.
+     *
+     * @param signal
+     *            The signal that's received
+     * @since 1.0
+     */
+    @Override
+    @TmfSignalHandler
+    public void selectionRangeUpdated(final TmfSelectionRangeUpdatedSignal signal) {
+
+    }
+
+    @Override
+    @TmfSignalHandler
+    public void windowRangeUpdated(final TmfWindowRangeUpdatedSignal signal) {
     }
 
     // ------------------------------------------------------------------------

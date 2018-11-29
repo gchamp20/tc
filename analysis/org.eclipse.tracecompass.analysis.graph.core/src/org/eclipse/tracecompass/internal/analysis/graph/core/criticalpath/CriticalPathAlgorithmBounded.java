@@ -123,11 +123,18 @@ public class CriticalPathAlgorithmBounded extends AbstractCriticalPathAlgorithm 
                         if (!visitedWorkers.contains(parentTo)) {
                             stack.push(verticalEdge.getVertexTo());
                             visitedWorkers.add(parentTo);
+
                             // add this vertex in the graph
                             if (criticalPathEdge != null) {
-                                criticalPath.append(parentTo, new TmfVertex(verticalEdge.getVertexTo()), verticalEdge.getType(), verticalEdge.getLinkQualifier());
-                                TmfVertex newVertex = criticalPath.getHead(parentTo);
-                                criticalPath.link(criticalPathEdge.getVertexTo(), newVertex);
+                                TmfEdge newEdge = criticalPath.append(parentTo, new TmfVertex(verticalEdge.getVertexTo()), verticalEdge.getType(), verticalEdge.getLinkQualifier());
+                                if (newEdge != null) {
+                                    criticalPath.link(criticalPathEdge.getVertexTo(), newEdge.getVertexTo());
+                                } else {
+                                    TmfVertex newVertex = criticalPath.getHead(parentTo);
+                                    if (newVertex != null) {
+                                        criticalPath.link(criticalPathEdge.getVertexTo(), newVertex);
+                                    }
+                                }
                             }
                         }
                     }

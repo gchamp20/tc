@@ -93,7 +93,7 @@ public class CriticalPathModule extends TmfAbstractAnalysisModule implements ICr
         }
 
         TmfVertex head = graph.getHead(worker);
-       List<Pair<Long, Long>> patterns = graphModule.getPattern(2792);
+       List<Pair<Long, Long>> patterns = graphModule.getPattern(27889);
         if (head == null) {
             /* Nothing happens with this worker, return an empty graph */
             fCriticalPath = new TmfGraph();
