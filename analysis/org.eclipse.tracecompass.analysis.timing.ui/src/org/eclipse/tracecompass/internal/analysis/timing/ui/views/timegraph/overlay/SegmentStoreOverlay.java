@@ -121,7 +121,7 @@ public class SegmentStoreOverlay implements ITimeGraphOverlay {
                 resolvedAspects.put(aspect.getName(), String.valueOf(aspect.resolve(segment)));
             }
             for (Entry<TimeGraphEntry, Multimap<String, String>> entry : markableEntries.entrySet()) {
-                if (IFilterableDataModel.compareMetadata(resolvedAspects, entry.getValue())) {
+                if (IFilterableDataModel.commonIntersect(resolvedAspects, entry.getValue())) {
                     // Create a marker
                     MarkerEvent m = new MarkerEvent(entry.getKey(), segment.getStart(), segment.getLength(), getName(), color, (segment instanceof INamedSegment) ? ((INamedSegment) segment).getName() : "", true);
 
