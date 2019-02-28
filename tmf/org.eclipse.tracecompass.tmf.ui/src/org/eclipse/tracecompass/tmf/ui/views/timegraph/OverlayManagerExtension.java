@@ -11,6 +11,7 @@ package org.eclipse.tracecompass.tmf.ui.views.timegraph;
 
 import org.eclipse.jdt.annotation.NonNull;
 import org.eclipse.jdt.annotation.NonNullByDefault;
+import org.eclipse.tracecompass.internal.tmf.ui.views.timegraph.ITimeGraphViewMetadataProvider;
 import org.eclipse.tracecompass.internal.tmf.ui.views.timegraph.OverlayManager;
 
 /**
@@ -28,10 +29,13 @@ class OverlayManagerExtension extends OverlayManager {
     /**
      * Constructor
      *
-     * @param view The view this manager is for
+     * @param view
+     *            The view this manager is for
+     * @param metadataBuilder
+     *            Provider of metadata about the view
      */
-    public OverlayManagerExtension(AbstractTimeGraphView view) {
-        super(view);
+    public OverlayManagerExtension(AbstractTimeGraphView view, ITimeGraphViewMetadataProvider metadataBuilder) {
+        super(view, metadataBuilder);
     }
 
     @Override

@@ -110,6 +110,8 @@ import org.eclipse.tracecompass.internal.tmf.core.markers.MarkerSet;
 import org.eclipse.tracecompass.internal.tmf.ui.Activator;
 import org.eclipse.tracecompass.internal.tmf.ui.markers.MarkerUtils;
 import org.eclipse.tracecompass.internal.tmf.ui.util.TimeGraphStyleUtil;
+import org.eclipse.tracecompass.internal.tmf.ui.views.timegraph.ITimeGraphViewMetadataBuilder;
+import org.eclipse.tracecompass.internal.tmf.ui.views.timegraph.ITimeGraphViewMetadataProvider;
 import org.eclipse.tracecompass.internal.tmf.ui.views.timegraph.TimeEventFilterDialog;
 import org.eclipse.tracecompass.internal.tmf.ui.views.timegraph.TimeGraphOverlayUtils;
 import org.eclipse.tracecompass.tmf.core.model.IFilterableDataModel;
@@ -380,6 +382,13 @@ public abstract class AbstractTimeGraphView extends TmfView implements ITmfTimeA
 
     private OverlayManagerExtension fOverlayManager;
 
+    /**
+     * Provider for metadata about this view.
+     * Views must add information to this provider as they parse their entries.
+     */
+    protected ITimeGraphViewMetadataBuilder fMetadataBuilder;
+
+
     /** Listener that handles a click on an entry in the FusedVM View */
     private final ITimeGraphSelectionListener fMetadataSelectionListener = new ITimeGraphSelectionListener() {
 
@@ -470,6 +479,7 @@ public abstract class AbstractTimeGraphView extends TmfView implements ITmfTimeA
         public void run(IProgressMonitor monitor) {
             try (FlowScopeLog log = new FlowScopeLogBuilder(LOGGER, Level.FINE, "TimeGraphView:BuildThread", "trace", fBuildTrace.getName()).setParentScope(fScope).build()) { //$NON-NLS-1$ //$NON-NLS-2$
                 buildEntryList(fBuildTrace, fParentTrace, NonNullUtils.checkNotNull(monitor));
+                fOverlayManager.refresh();
                 synchronized (fBuildJobMap) {
                     fBuildJobMap.remove(fBuildTrace);
                 }
@@ -1440,7 +1450,8 @@ public abstract class AbstractTimeGraphView extends TmfView implements ITmfTimeA
             }
         });
 
-        fOverlayManager = new OverlayManagerExtension(this);
+        fMetadataBuilder = new TimeGraphViewMetadataProvider();
+        fOverlayManager = new OverlayManagerExtension(this, (ITimeGraphViewMetadataProvider) fMetadataBuilder);
         if (trace != null) {
             fOverlayManager.refresh();
         }
@@ -2911,4 +2922,34 @@ public abstract class AbstractTimeGraphView extends TmfView implements ITmfTimeA
         }
     }
 
+    /**
+     * Class to provide metadata information about the view to the overlay manager.
+     * Also implements the builder interface to let child views modify the metadata.
+     *
+     * @author Guillaume Champagne
+     */
+    private class TimeGraphViewMetadataProvider implements ITimeGraphViewMetadataProvider, ITimeGraphViewMetadataBuilder {
+
+        Set<String> fEntriesMetadata;
+
+        /**
+         * Default constructor.
+         */
+        public TimeGraphViewMetadataProvider() {
+            fEntriesMetadata = new HashSet<>();
+        }
+
+        @Override
+        public void addEntriesMetadata(Set<String> metadata) {
+            synchronized (fEntriesMetadata) {
+                fEntriesMetadata.addAll(metadata);
+            }
+        }
+
+        @Override
+        public Set<String> getEntriesMetadata() {
+            return fEntriesMetadata == null ? Collections.emptySet() : Collections.unmodifiableSet(fEntriesMetadata);
+        }
+
+    }
 }

@@ -17,7 +17,11 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Objects;
 import java.util.Set;
+import java.util.stream.Collectors;
+import java.util.stream.StreamSupport;
+
 import org.apache.commons.lang3.StringUtils;
 import org.eclipse.core.runtime.IProgressMonitor;
 import org.eclipse.jdt.annotation.NonNull;
@@ -188,6 +192,13 @@ public class SegmentStoreOverlay implements ITimeGraphOverlay {
          */
         public void writeSegment(ISafeByteBufferWriter buffer) {
         }
+    }
+
+    @Override
+    public Set<String> getOverlayMetadata() {
+        return StreamSupport.stream(fSsProvider.getSegmentAspects().spliterator(), false)
+            .map(x -> x.getName())
+            .collect(Collectors.toSet());
     }
 }
 
