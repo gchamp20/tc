@@ -714,6 +714,11 @@ public class ControlFlowView extends BaseDataProviderTimeGraphView {
                                 addToEntryList(parentTrace, Collections.singletonList(traceEntry));
                             }
                         }
+                        /**
+                         * FIXME: Access is discouraged because addEntriesMetadata is not API.
+                         * Will be fixed when the metadata concept is API.
+                         */
+                        fMetadataBuilder.addEntriesMetadata(entry.getMetadata().keySet());
                     }
                 }
 

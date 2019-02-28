@@ -10,8 +10,10 @@
 package org.eclipse.tracecompass.internal.tmf.ui.views.timegraph;
 
 import java.util.Collection;
+import java.util.Set;
 
 import org.eclipse.core.runtime.IProgressMonitor;
+import org.eclipse.jdt.annotation.NonNull;
 import org.eclipse.jdt.annotation.NonNullByDefault;
 import org.eclipse.swt.graphics.RGBA;
 import org.eclipse.tracecompass.tmf.ui.widgets.timegraph.model.ILinkEvent;
@@ -31,6 +33,13 @@ import org.eclipse.tracecompass.tmf.ui.widgets.timegraph.model.TimeGraphEntry;
  */
 @NonNullByDefault
 public interface ITimeGraphOverlay {
+
+    /**
+     * Get the a set of all metadata keys provided by this overlay.
+     *
+     * @return Set of metadata key
+     */
+    Set<@NonNull String> getOverlayMetadata();
 
     /**
      * Get the links provided by this overlay

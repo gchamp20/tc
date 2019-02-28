@@ -12,10 +12,12 @@ package org.eclipse.tracecompass.internal.tmf.ui.views.timegraph;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Objects;
+import java.util.Set;
 
 import org.eclipse.jdt.annotation.NonNull;
 import org.eclipse.jdt.annotation.NonNullByDefault;
@@ -36,6 +38,9 @@ import org.eclipse.swt.widgets.Shell;
 import org.eclipse.tracecompass.internal.tmf.ui.Activator;
 import org.eclipse.tracecompass.internal.tmf.ui.ITmfImageConstants;
 import org.eclipse.tracecompass.internal.tmf.ui.Messages;
+import org.eclipse.tracecompass.internal.tmf.ui.views.timegraph.ITimeGraphOverlay;
+import org.eclipse.tracecompass.internal.tmf.ui.views.timegraph.ITimeGraphOverlayProvider;
+import org.eclipse.tracecompass.internal.tmf.ui.views.timegraph.ITimeGraphViewMetadataProvider;
 import org.eclipse.tracecompass.tmf.core.trace.ITmfTrace;
 import org.eclipse.tracecompass.tmf.ui.views.timegraph.AbstractTimeGraphView;
 
@@ -96,15 +101,21 @@ public abstract class OverlayManager {
 
     private final AbstractTimeGraphView fView;
     private final Map<String, @NonNull AvailableOverlay> fAvailableOverlays = new HashMap<>();
+    private final ITimeGraphViewMetadataProvider fMetadataProvider;
+    private final Set<String> fRejectedOverlays = new HashSet<>();
     private @Nullable Action fOverlayAction;
 
     /**
      * Constructor
      *
-     * @param view The view that this manager is for
+     * @param view
+     *            The view that this manager is for
+     * @param metadataProvider
+     *            Provider of metadata about the view
      */
-    public OverlayManager(AbstractTimeGraphView view) {
+    public OverlayManager(AbstractTimeGraphView view, ITimeGraphViewMetadataProvider metadataProvider) {
         fView = view;
+        fMetadataProvider = metadataProvider;
     }
 
     /**
@@ -116,9 +127,27 @@ public abstract class OverlayManager {
             return;
         }
         fAvailableOverlays.clear();
+
+        Set<String> viewMetadata = fMetadataProvider.getEntriesMetadata();
+
         for (ITimeGraphOverlayProvider provider : TG_OVERLAYS) {
             Multimap<String, ITimeGraphOverlay> overlays = provider.getOverlays(trace);
             for (String overlayName : overlays.keySet()) {
+
+                /* Build a set containing all the metadata that can be provided by this overlay */
+                Set<String> overlayMetadata = new HashSet<>();
+                for (ITimeGraphOverlay overlay : overlays.get(overlayName)) {
+                    overlayMetadata.addAll(overlay.getOverlayMetadata());
+                }
+
+                /* If there's no intersection with the view metadata, this overlay will doesn't match for this view */
+                if (viewMetadata.isEmpty() || overlayMetadata.isEmpty() ||
+                        !(viewMetadata.stream().anyMatch(a -> overlayMetadata.contains(a)))) {
+                    fRejectedOverlays.add(overlayName);
+                    continue;
+                }
+
+                /* This overlay has the potential to create match based on metadata, list it as available */
                 AvailableOverlay thisOverlay = fAvailableOverlays.get(overlayName);
                 if (thisOverlay == null) {
                     thisOverlay = new AvailableOverlay(overlays.get(overlayName));
