@@ -26,6 +26,8 @@ import org.eclipse.jface.action.Action;
 import org.eclipse.jface.action.ActionContributionItem;
 import org.eclipse.jface.action.IAction;
 import org.eclipse.jface.action.IMenuCreator;
+import org.eclipse.jface.action.IToolBarManager;
+import org.eclipse.jface.action.Separator;
 import org.eclipse.jface.resource.ImageDescriptor;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.graphics.RGB;
@@ -38,11 +40,9 @@ import org.eclipse.swt.widgets.Shell;
 import org.eclipse.tracecompass.internal.tmf.ui.Activator;
 import org.eclipse.tracecompass.internal.tmf.ui.ITmfImageConstants;
 import org.eclipse.tracecompass.internal.tmf.ui.Messages;
-import org.eclipse.tracecompass.internal.tmf.ui.views.timegraph.ITimeGraphOverlay;
-import org.eclipse.tracecompass.internal.tmf.ui.views.timegraph.ITimeGraphOverlayProvider;
-import org.eclipse.tracecompass.internal.tmf.ui.views.timegraph.ITimeGraphViewMetadataProvider;
 import org.eclipse.tracecompass.tmf.core.trace.ITmfTrace;
 import org.eclipse.tracecompass.tmf.ui.views.timegraph.AbstractTimeGraphView;
+import org.eclipse.ui.IWorkbenchActionConstants;
 
 import com.google.common.collect.Multimap;
 
@@ -116,6 +116,9 @@ public abstract class OverlayManager {
     public OverlayManager(AbstractTimeGraphView view, ITimeGraphViewMetadataProvider metadataProvider) {
         fView = view;
         fMetadataProvider = metadataProvider;
+        IToolBarManager manager = view.getViewSite().getActionBars().getToolBarManager();
+        manager.appendToGroup(IWorkbenchActionConstants.MB_ADDITIONS, new Separator());
+        manager.appendToGroup(IWorkbenchActionConstants.MB_ADDITIONS, getSelectOverlayMenu());
     }
 
     /**
@@ -159,15 +162,7 @@ public abstract class OverlayManager {
         }
     }
 
-    /**
-     * Get the overlay menu
-     *
-     * FIXME: make private when enabled, otherwise there's too much code to
-     * remove from here
-     *
-     * @return The overlay menu action
-     */
-    protected Action getSelectOverlayMenu() {
+    private Action getSelectOverlayMenu() {
         Action overlayAction = fOverlayAction;
         if (overlayAction == null) {
             overlayAction = new Action(Messages.TmfTimeGraphOverlay_MenuButton, IAction.AS_DROP_DOWN_MENU) {
