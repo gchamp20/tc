@@ -56,6 +56,8 @@ import org.eclipse.tracecompass.internal.tmf.ui.Activator;
 import org.eclipse.tracecompass.internal.tmf.ui.ITmfImageConstants;
 import org.eclipse.tracecompass.internal.tmf.ui.Messages;
 import org.eclipse.tracecompass.internal.tmf.ui.util.TimeGraphStyleUtil;
+import org.eclipse.tracecompass.internal.tmf.ui.widgets.timegraph.ITimeGraphStyleProvider;
+import org.eclipse.tracecompass.internal.tmf.ui.widgets.timegraph.TimeGraphPresentationProviderWrapper;
 import org.eclipse.tracecompass.tmf.core.presentation.RGBAColor;
 import org.eclipse.tracecompass.tmf.ui.widgets.timegraph.ITimeGraphPresentationProvider;
 import org.eclipse.tracecompass.tmf.ui.widgets.timegraph.StateItem;
@@ -73,7 +75,7 @@ import com.google.common.collect.Collections2;
 public class TimeGraphLegend extends TitleAreaDialog {
 
     private static final ImageDescriptor RESET_IMAGE = Activator.getDefault().getImageDescripterFromPath(ITmfImageConstants.IMG_RESET_BUTTON);
-    private final ITimeGraphPresentationProvider fProvider;
+    private final ITimeGraphStyleProvider fProvider;
     private final LocalResourceManager fResourceManager = new LocalResourceManager(JFaceResources.getResources());
 
     /**
@@ -89,6 +91,18 @@ public class TimeGraphLegend extends TitleAreaDialog {
     }
 
     /**
+     * Open the time graph legend window
+     *
+     * @param parent
+     *            The parent shell
+     * @param provider
+     *            The style provider
+     */
+    public static void open(Shell parent, ITimeGraphStyleProvider provider) {
+        (new TimeGraphLegend(parent, provider)).open();
+    }
+
+    /**
      * Standard constructor
      *
      * @param parent
@@ -97,6 +111,20 @@ public class TimeGraphLegend extends TitleAreaDialog {
      *            The presentation provider
      */
     public TimeGraphLegend(Shell parent, ITimeGraphPresentationProvider provider) {
+        super(parent);
+        fProvider = new TimeGraphPresentationProviderWrapper(provider);
+        this.setShellStyle(getShellStyle() | SWT.RESIZE);
+    }
+
+    /**
+     * Standard constructor
+     *
+     * @param parent
+     *            The parent shell
+     * @param provider
+     *            The style provider
+     */
+    public TimeGraphLegend(Shell parent, ITimeGraphStyleProvider provider) {
         super(parent);
         fProvider = provider;
         this.setShellStyle(getShellStyle() | SWT.RESIZE);
@@ -109,7 +137,11 @@ public class TimeGraphLegend extends TitleAreaDialog {
      * @since 3.3
      */
     protected final ITimeGraphPresentationProvider getPresentationProvider() {
-        return fProvider;
+        /* FIXME: This should be deprecated if ITimeGraphStyleProvider becomes API */
+        if (fProvider instanceof TimeGraphPresentationProviderWrapper) {
+            return ((TimeGraphPresentationProviderWrapper)fProvider).getPresentationProvider();
+        }
+        return null;
     }
 
     @Override

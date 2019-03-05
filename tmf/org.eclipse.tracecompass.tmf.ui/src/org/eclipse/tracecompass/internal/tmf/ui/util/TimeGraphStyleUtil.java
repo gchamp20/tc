@@ -12,6 +12,8 @@ import java.util.Map;
 import org.eclipse.jdt.annotation.Nullable;
 import org.eclipse.jface.preference.IPreferenceStore;
 import org.eclipse.tracecompass.internal.tmf.ui.Activator;
+import org.eclipse.tracecompass.internal.tmf.ui.widgets.timegraph.ITimeGraphStyleProvider;
+import org.eclipse.tracecompass.internal.tmf.ui.widgets.timegraph.TimeGraphPresentationProviderWrapper;
 import org.eclipse.tracecompass.tmf.core.presentation.RGBAColor;
 import org.eclipse.tracecompass.tmf.ui.widgets.timegraph.ITimeGraphPresentationProvider;
 import org.eclipse.tracecompass.tmf.ui.widgets.timegraph.StateItem;
@@ -39,15 +41,15 @@ public final class TimeGraphStyleUtil {
     /**
      * Load default values into the state item from a preference store
      *
-     * @param presentationProvider
-     *            the presentation provider
+     * @param styleProvider
+     *            the style provider
      * @param stateItem
      *            the state item
      */
-    public static void loadValue(ITimeGraphPresentationProvider presentationProvider, StateItem stateItem) {
+    public static void loadValue(ITimeGraphStyleProvider styleProvider, StateItem stateItem) {
         IPreferenceStore store = getStore();
-        String fillColorKey = getPreferenceName(presentationProvider, stateItem, ITimeEventStyleStrings.fillColor());
-        String heightFactorKey = getPreferenceName(presentationProvider, stateItem, ITimeEventStyleStrings.heightFactor());
+        String fillColorKey = getPreferenceName(styleProvider, stateItem, ITimeEventStyleStrings.fillColor());
+        String heightFactorKey = getPreferenceName(styleProvider, stateItem, ITimeEventStyleStrings.heightFactor());
         Map<String, Object> styleMap = stateItem.getStyleMap();
 
         String prefRgbColor = store.getString(fillColorKey);
@@ -66,8 +68,42 @@ public final class TimeGraphStyleUtil {
 
     }
 
+    /**
+     * Load default values into the state item from a preference store
+     *
+     * @param presentationProvider
+     *            the presentation provider
+     * @param stateItem
+     *            the state item
+     */
+    public static void loadValue(ITimeGraphPresentationProvider presentationProvider, StateItem stateItem) {
+        loadValue(new TimeGraphPresentationProviderWrapper(presentationProvider), stateItem);
+    }
+
     private static @Nullable Object getItemProperty(StateItem stateItem) {
         return stateItem.getStyleMap().get(ITimeEventStyleStrings.itemTypeProperty());
+    }
+
+    /**
+     * Get the preference name for a style key
+     *
+     * @param styleProvider
+     *            the style provider being queried
+     * @param stateItem
+     *            the state item
+     * @param styleKey
+     *            the key of the state item
+     * @return a path to lookup the value
+     */
+    public static String getPreferenceName(ITimeGraphStyleProvider styleProvider, StateItem stateItem, String styleKey) {
+        return Joiner
+                .on(SEPARATOR)
+                .skipNulls()
+                .join(
+                        PREFIX + String.valueOf(styleProvider.getPreferenceKey()),
+                        getItemProperty(stateItem),
+                        stateItem.getStateString(),
+                        styleKey);
     }
 
     /**
@@ -82,14 +118,18 @@ public final class TimeGraphStyleUtil {
      * @return a path to lookup the value
      */
     public static String getPreferenceName(ITimeGraphPresentationProvider presentationProvider, StateItem stateItem, String styleKey) {
-        return Joiner
-                .on(SEPARATOR)
-                .skipNulls()
-                .join(
-                        PREFIX + String.valueOf(presentationProvider.getPreferenceKey()),
-                        getItemProperty(stateItem),
-                        stateItem.getStateString(),
-                        styleKey);
+        return getPreferenceName(new TimeGraphPresentationProviderWrapper(presentationProvider), stateItem, styleKey);
+    }
+
+    /**
+     * Load default values into the state items from a preference store
+     * @param styleProvider
+     *            the presentation provider
+     */
+    public static void loadValues(ITimeGraphStyleProvider styleProvider) {
+        for (StateItem stateItem : styleProvider.getStateTable()) {
+            loadValue(styleProvider, stateItem);
+        }
     }
 
     /**
@@ -98,9 +138,7 @@ public final class TimeGraphStyleUtil {
      *            the presentation provider
      */
     public static void loadValues(ITimeGraphPresentationProvider presentationProvider) {
-        for (StateItem stateItem : presentationProvider.getStateTable()) {
-            loadValue(presentationProvider, stateItem);
-        }
+        loadValues(new TimeGraphPresentationProviderWrapper(presentationProvider));
     }
 
     /**
