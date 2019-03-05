@@ -13,35 +13,35 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.Map.Entry;
 import java.util.Objects;
 import java.util.Set;
+import java.util.stream.Collectors;
 
-import org.eclipse.jdt.annotation.NonNull;
 import org.eclipse.jdt.annotation.NonNullByDefault;
 import org.eclipse.jdt.annotation.Nullable;
 import org.eclipse.jface.action.Action;
-import org.eclipse.jface.action.ActionContributionItem;
-import org.eclipse.jface.action.IAction;
-import org.eclipse.jface.action.IMenuCreator;
 import org.eclipse.jface.action.IToolBarManager;
 import org.eclipse.jface.action.Separator;
 import org.eclipse.jface.resource.ImageDescriptor;
-import org.eclipse.swt.SWT;
-import org.eclipse.swt.graphics.RGB;
 import org.eclipse.swt.graphics.RGBA;
-import org.eclipse.swt.widgets.ColorDialog;
 import org.eclipse.swt.widgets.Control;
-import org.eclipse.swt.widgets.Event;
-import org.eclipse.swt.widgets.Menu;
-import org.eclipse.swt.widgets.Shell;
 import org.eclipse.tracecompass.internal.tmf.ui.Activator;
 import org.eclipse.tracecompass.internal.tmf.ui.ITmfImageConstants;
 import org.eclipse.tracecompass.internal.tmf.ui.Messages;
 import org.eclipse.tracecompass.tmf.core.trace.ITmfTrace;
 import org.eclipse.tracecompass.tmf.ui.views.timegraph.AbstractTimeGraphView;
+import org.eclipse.tracecompass.internal.tmf.ui.views.timegraph.ITimeGraphOverlay;
+import org.eclipse.tracecompass.internal.tmf.ui.views.timegraph.ITimeGraphOverlayProvider;
+import org.eclipse.tracecompass.internal.tmf.ui.views.timegraph.ITimeGraphViewMetadataProvider;
+import org.eclipse.tracecompass.internal.tmf.ui.widgets.timegraph.ITimeGraphStyleProvider;
+import org.eclipse.tracecompass.tmf.core.presentation.IPaletteProvider;
+import org.eclipse.tracecompass.tmf.core.presentation.QualitativePaletteProvider;
+import org.eclipse.tracecompass.tmf.core.presentation.RGBAColor;
+import org.eclipse.tracecompass.tmf.ui.widgets.timegraph.StateItem;
+import org.eclipse.tracecompass.tmf.ui.widgets.timegraph.dialogs.TimeGraphLegend;
 import org.eclipse.ui.IWorkbenchActionConstants;
 
 import com.google.common.collect.Multimap;
@@ -52,25 +52,63 @@ import com.google.common.collect.Multimap;
  * @author Geneviève Bastien
  */
 @NonNullByDefault
-public abstract class OverlayManager {
-    private static final RGB DEFAULT_RGB = new RGB(80, 120, 190);
-    private static final RGBA DEFAULT_RGBA = new RGBA(80, 120, 190, 50);
+public abstract class OverlayManager implements ITimeGraphStyleProvider {
+    private static final RGBAColor DEFAULT_RGB = new RGBAColor(80, 120, 190);
+    @Nullable private IPaletteProvider fPaletteProvider;
+
     private static final List<ITimeGraphOverlayProvider> TG_OVERLAYS = new ArrayList<>();
     private static final ImageDescriptor IMG_OVERLAY = Objects.requireNonNull(Activator.getDefault().getImageDescripterFromPath(ITmfImageConstants.IMG_OVERLAY));
 
-    private static class AvailableOverlay {
+    /**
+     * Builder class for #OverlayStateItem
+     */
+    private static class OverlayStateItemBuilder {
         private final Collection<ITimeGraphOverlay> fOverlays;
-        private boolean fActive;
-        private RGB fRGB = DEFAULT_RGB;
-        private RGBA fRGBA = DEFAULT_RGBA;
+        private RGBAColor fColor;
+        private String fName;
 
-        public AvailableOverlay(Collection<ITimeGraphOverlay> overlays) {
+        public OverlayStateItemBuilder(String name, Collection<ITimeGraphOverlay> overlays) {
             fOverlays = overlays;
-            fActive = false;
+            fColor = DEFAULT_RGB;
+            fName = name;
         }
 
         public void addOverlays(Collection<ITimeGraphOverlay> overlays) {
             fOverlays.addAll(overlays);
+        }
+
+        public void setColor(RGBAColor color) {
+            fColor = color;
+        }
+
+        public OverlayStateItem build() {
+            return new OverlayStateItem(fName, fOverlays, new RGBA(fColor.getRed(), fColor.getGreen(), fColor.getBlue(), fColor.getAlpha()));
+        }
+    }
+
+    /**
+     * Holds the styling information and activation state
+     * for an overlay.
+     */
+    private static class OverlayStateItem extends StateItem {
+        private final Collection<ITimeGraphOverlay> fOverlays;
+        private boolean fActive;
+        private RGBA fColor;
+
+        /**
+         * @param name
+         *          Name of the group of overlay
+         * @param overlays
+         *          List of overlays associated with this name
+         * @param color
+         *          Default color
+         */
+        public OverlayStateItem(String name, Collection<ITimeGraphOverlay> overlays, RGBA color) {
+            super(color.rgb, name);
+            fActive = false;
+            fOverlays = overlays;
+            fActive = false;
+            fColor = color;
         }
 
         public void setActive(boolean active) {
@@ -85,25 +123,16 @@ public abstract class OverlayManager {
             return fOverlays;
         }
 
-        public RGB getRGB() {
-            return fRGB;
-        }
-
-        public void setRGB(RGB color) {
-            fRGB = color;
-            fRGBA = new RGBA(color.red, color.green, color.blue, 50);
-        }
-
         public RGBA getRGBA() {
-            return fRGBA;
+            return fColor;
         }
     }
 
     private final AbstractTimeGraphView fView;
-    private final Map<String, @NonNull AvailableOverlay> fAvailableOverlays = new HashMap<>();
     private final ITimeGraphViewMetadataProvider fMetadataProvider;
     private final Set<String> fRejectedOverlays = new HashSet<>();
     private @Nullable Action fOverlayAction;
+    private List<OverlayStateItem> fAvailableOverlays = new ArrayList<>();
 
     /**
      * Constructor
@@ -121,17 +150,16 @@ public abstract class OverlayManager {
         manager.appendToGroup(IWorkbenchActionConstants.MB_ADDITIONS, getSelectOverlayMenu());
     }
 
-    /**
-     *
-     */
-    public void refresh() {
+    public void refreshOverlayList() {
         ITmfTrace trace = fView.getTrace();
         if (trace == null) {
             return;
         }
-        fAvailableOverlays.clear();
 
+        Integer nbColors = 0;
+        QualitativePaletteProvider.Builder paletteBuilder = new QualitativePaletteProvider.Builder();
         Set<String> viewMetadata = fMetadataProvider.getEntriesMetadata();
+        Map<String, OverlayStateItemBuilder> availableOverlays = new HashMap<>();
 
         for (ITimeGraphOverlayProvider provider : TG_OVERLAYS) {
             Multimap<String, ITimeGraphOverlay> overlays = provider.getOverlays(trace);
@@ -151,82 +179,43 @@ public abstract class OverlayManager {
                 }
 
                 /* This overlay has the potential to create match based on metadata, list it as available */
-                AvailableOverlay thisOverlay = fAvailableOverlays.get(overlayName);
+                paletteBuilder.setNbColors(++nbColors);
+                OverlayStateItemBuilder thisOverlay = availableOverlays.get(overlayName);
                 if (thisOverlay == null) {
-                    thisOverlay = new AvailableOverlay(overlays.get(overlayName));
+                    thisOverlay = new OverlayStateItemBuilder(overlayName, overlays.get(overlayName));
                 } else {
                     thisOverlay.addOverlays(overlays.get(overlayName));
                 }
-                fAvailableOverlays.put(overlayName, thisOverlay);
             }
         }
+
+        /* Build the overlay state items and set their colors */
+        fPaletteProvider = paletteBuilder.build();
+        Iterator<RGBAColor> colorIt = fPaletteProvider.get().iterator();
+        fAvailableOverlays = availableOverlays.entrySet().stream()
+            .map(x -> x.getValue())
+            .peek(x -> x.setColor(colorIt.next()))
+            .map(x -> x.build())
+            .collect(Collectors.toList());
     }
 
     private Action getSelectOverlayMenu() {
+        ITimeGraphStyleProvider provider = this;
         Action overlayAction = fOverlayAction;
         if (overlayAction == null) {
-            overlayAction = new Action(Messages.TmfTimeGraphOverlay_MenuButton, IAction.AS_DROP_DOWN_MENU) {
+            overlayAction = new Action() {
                 @Override
-                public void runWithEvent(@Nullable Event event) {
+                public void run() {
+                    Control tgControl = fView.getParentComposite();
+                    if (tgControl == null || tgControl.isDisposed()) {
+                        return;
+                    }
 
+                    TimeGraphLegend.open(tgControl.getShell(), provider);
                 }
             };
             overlayAction.setToolTipText(Messages.TmfTimeGraphOverlay_MenuButtonTooltip);
             overlayAction.setImageDescriptor(IMG_OVERLAY);
-            overlayAction.setMenuCreator(new IMenuCreator() {
-                @Nullable
-                Menu fMenu = null;
-
-                @Override
-                public void dispose() {
-                    if (fMenu != null) {
-                        fMenu.dispose();
-                        fMenu = null;
-                    }
-                }
-
-                @Override
-                public Menu getMenu(@Nullable Control parent) {
-                    if (fMenu != null) {
-                        fMenu.dispose();
-                    }
-                    Menu menu = new Menu(parent);
-                    for (Entry<String, @NonNull AvailableOverlay> overlay : fAvailableOverlays.entrySet()) {
-                        AvailableOverlay overlayObj = Objects.requireNonNull(overlay.getValue());
-                        final Action action = new Action(overlay.getKey(), IAction.AS_CHECK_BOX) {
-                            @Override
-                            public void runWithEvent(@Nullable Event event) {
-                                AvailableOverlay currentOverlay = overlayObj;
-                                if (isChecked()) {
-                                    currentOverlay.setActive(true);
-                                    // Show the dialog for
-                                    Shell shell = new Shell();
-                                    ColorDialog cd = new ColorDialog(shell, SWT.NONE);
-                                    cd.setRGB(currentOverlay.getRGB());
-                                    RGB color = cd.open();
-                                    if (color != null) {
-                                        currentOverlay.setRGB(color);
-                                    }
-                                } else {
-                                    currentOverlay.setActive(false);
-                                }
-                                refreshView(fView);
-                            }
-
-                        };
-                        action.setEnabled(true);
-                        action.setChecked(overlayObj.isActive());
-                        new ActionContributionItem(action).fill(menu, -1);
-                    }
-                    fMenu = menu;
-                    return menu;
-                }
-
-                @Override
-                public @Nullable Menu getMenu(@Nullable Menu parent) {
-                    return null;
-                }
-            });
             fOverlayAction = overlayAction;
         }
         return overlayAction;
@@ -248,7 +237,7 @@ public abstract class OverlayManager {
      */
     public Map<ITimeGraphOverlay, RGBA> getActiveOverlays() {
         Map<ITimeGraphOverlay, RGBA> active = new HashMap<>();
-        for (AvailableOverlay overlay : fAvailableOverlays.values()) {
+        for (OverlayStateItem overlay : fAvailableOverlays) {
             if (overlay.isActive()) {
                 for (ITimeGraphOverlay o : overlay.getOverlays()) {
                     active.put(o, overlay.getRGBA());

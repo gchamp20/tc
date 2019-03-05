@@ -479,7 +479,7 @@ public abstract class AbstractTimeGraphView extends TmfView implements ITmfTimeA
         public void run(IProgressMonitor monitor) {
             try (FlowScopeLog log = new FlowScopeLogBuilder(LOGGER, Level.FINE, "TimeGraphView:BuildThread", "trace", fBuildTrace.getName()).setParentScope(fScope).build()) { //$NON-NLS-1$ //$NON-NLS-2$
                 buildEntryList(fBuildTrace, fParentTrace, NonNullUtils.checkNotNull(monitor));
-                fOverlayManager.refresh();
+                fOverlayManager.refreshOverlayList();
                 synchronized (fBuildJobMap) {
                     fBuildJobMap.remove(fBuildTrace);
                 }
@@ -1453,7 +1453,7 @@ public abstract class AbstractTimeGraphView extends TmfView implements ITmfTimeA
         fMetadataBuilder = new TimeGraphViewMetadataProvider();
         fOverlayManager = new OverlayManagerExtension(this, (ITimeGraphViewMetadataProvider) fMetadataBuilder);
         if (trace != null) {
-            fOverlayManager.refresh();
+            fOverlayManager.refreshOverlayList();
         }
     }
 
@@ -1748,7 +1748,7 @@ public abstract class AbstractTimeGraphView extends TmfView implements ITmfTimeA
         fTrace = trace;
         OverlayManagerExtension overlayManager = fOverlayManager;
         if (overlayManager != null) {
-            fOverlayManager.refresh();
+            fOverlayManager.refreshOverlayList();
         }
 
         TraceCompassLogUtils.traceInstant(LOGGER, Level.FINE, "TimeGraphView:LoadingTrace", "trace", trace.getName(), "viewId", getViewId()); //$NON-NLS-1$ //$NON-NLS-2$//$NON-NLS-3$
