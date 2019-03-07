@@ -42,6 +42,7 @@ import org.eclipse.tracecompass.tmf.core.presentation.QualitativePaletteProvider
 import org.eclipse.tracecompass.tmf.core.presentation.RGBAColor;
 import org.eclipse.tracecompass.tmf.ui.widgets.timegraph.StateItem;
 import org.eclipse.tracecompass.tmf.ui.widgets.timegraph.dialogs.TimeGraphLegend;
+import org.eclipse.tracecompass.tmf.ui.widgets.timegraph.model.ITimeEvent;
 import org.eclipse.ui.IWorkbenchActionConstants;
 
 import com.google.common.collect.Multimap;
@@ -111,9 +112,9 @@ public abstract class OverlayManager implements ITimeGraphStyleProvider {
             fColor = color;
         }
 
-        public void setActive(boolean active) {
+        /* public void setActive(boolean active) {
             fActive = active;
-        }
+        } */
 
         public boolean isActive() {
             return fActive;
@@ -183,6 +184,7 @@ public abstract class OverlayManager implements ITimeGraphStyleProvider {
                 OverlayStateItemBuilder thisOverlay = availableOverlays.get(overlayName);
                 if (thisOverlay == null) {
                     thisOverlay = new OverlayStateItemBuilder(overlayName, overlays.get(overlayName));
+                    availableOverlays.put(overlayName, thisOverlay);
                 } else {
                     thisOverlay.addOverlays(overlays.get(overlayName));
                 }
@@ -255,5 +257,21 @@ public abstract class OverlayManager implements ITimeGraphStyleProvider {
      */
     public static void addOverlayProvider(ITimeGraphOverlayProvider overlayProvider) {
         TG_OVERLAYS.add(overlayProvider);
+    }
+
+    @Override
+    public StateItem[] getStateTable() {
+        return fAvailableOverlays.toArray(new StateItem[0]);
+    }
+
+    @Override
+    public int getStateTableIndex(@Nullable ITimeEvent event) {
+        // TODO Auto-generated method stub
+        return 0;
+    }
+
+    @Override
+    public String getStateTypeName() {
+        return "LOOOOOOOOOOOOOOOL";
     }
 }
