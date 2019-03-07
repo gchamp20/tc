@@ -41,7 +41,6 @@ import org.eclipse.tracecompass.tmf.core.presentation.IPaletteProvider;
 import org.eclipse.tracecompass.tmf.core.presentation.QualitativePaletteProvider;
 import org.eclipse.tracecompass.tmf.core.presentation.RGBAColor;
 import org.eclipse.tracecompass.tmf.ui.widgets.timegraph.StateItem;
-import org.eclipse.tracecompass.tmf.ui.widgets.timegraph.dialogs.TimeGraphLegend;
 import org.eclipse.tracecompass.tmf.ui.widgets.timegraph.model.ITimeEvent;
 import org.eclipse.ui.IWorkbenchActionConstants;
 
@@ -213,7 +212,7 @@ public abstract class OverlayManager implements ITimeGraphStyleProvider {
                         return;
                     }
 
-                    TimeGraphLegend.open(tgControl.getShell(), provider);
+                    OverlayLegend.open(tgControl.getShell(), provider);
                 }
             };
             overlayAction.setToolTipText(Messages.TmfTimeGraphOverlay_MenuButtonTooltip);
@@ -272,6 +271,6 @@ public abstract class OverlayManager implements ITimeGraphStyleProvider {
 
     @Override
     public String getStateTypeName() {
-        return "LOOOOOOOOOOOOOOOL";
+        return "Overlay";
     }
 }
