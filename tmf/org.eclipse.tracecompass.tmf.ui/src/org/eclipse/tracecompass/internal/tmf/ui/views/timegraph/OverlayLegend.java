@@ -1,55 +1,38 @@
 /*******************************************************************************
- * Copyright (c) 2009, 2019 Ericsson.
+ * Copyright (c) 2019 École Polytechnique de Montréal
  *
  * All rights reserved. This program and the accompanying materials are
  * made available under the terms of the Eclipse Public License v1.0 which
  * accompanies this distribution, and is available at
  * http://www.eclipse.org/legal/epl-v10.html
- *
- * Contributors:
- *   Alvaro Sanchez-Leon - Initial API and implementation
- *   Patrick Tasse - Refactoring
  *******************************************************************************/
 
-package org.eclipse.tracecompass.tmf.ui.widgets.timegraph.dialogs;
+package org.eclipse.tracecompass.internal.tmf.ui.views.timegraph;
 
 import java.util.Arrays;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 
-import org.eclipse.jface.dialogs.IDialogConstants;
-import org.eclipse.jface.dialogs.TitleAreaDialog;
 import org.eclipse.jface.layout.GridDataFactory;
 import org.eclipse.jface.layout.GridLayoutFactory;
 import org.eclipse.jface.preference.IPreferenceStore;
 import org.eclipse.jface.resource.ImageDescriptor;
-import org.eclipse.jface.resource.JFaceResources;
-import org.eclipse.jface.resource.LocalResourceManager;
 import org.eclipse.swt.SWT;
 import org.eclipse.swt.custom.CLabel;
-import org.eclipse.swt.custom.ScrolledComposite;
 import org.eclipse.swt.events.MouseAdapter;
 import org.eclipse.swt.events.MouseEvent;
 import org.eclipse.swt.events.MouseTrackListener;
 import org.eclipse.swt.events.SelectionEvent;
 import org.eclipse.swt.events.SelectionListener;
-import org.eclipse.swt.graphics.Color;
 import org.eclipse.swt.graphics.Cursor;
 import org.eclipse.swt.graphics.GC;
 import org.eclipse.swt.graphics.RGB;
-import org.eclipse.swt.graphics.Rectangle;
 import org.eclipse.swt.layout.GridData;
 import org.eclipse.swt.layout.GridLayout;
 import org.eclipse.swt.widgets.Button;
-import org.eclipse.swt.widgets.Canvas;
 import org.eclipse.swt.widgets.ColorDialog;
 import org.eclipse.swt.widgets.Composite;
-import org.eclipse.swt.widgets.Control;
-import org.eclipse.swt.widgets.Display;
-import org.eclipse.swt.widgets.Event;
 import org.eclipse.swt.widgets.Group;
-import org.eclipse.swt.widgets.Listener;
 import org.eclipse.swt.widgets.Scale;
 import org.eclipse.swt.widgets.Shell;
 import org.eclipse.tracecompass.internal.tmf.ui.Activator;
@@ -57,26 +40,21 @@ import org.eclipse.tracecompass.internal.tmf.ui.ITmfImageConstants;
 import org.eclipse.tracecompass.internal.tmf.ui.Messages;
 import org.eclipse.tracecompass.internal.tmf.ui.util.TimeGraphStyleUtil;
 import org.eclipse.tracecompass.internal.tmf.ui.widgets.timegraph.ITimeGraphStyleProvider;
-import org.eclipse.tracecompass.internal.tmf.ui.widgets.timegraph.TimeGraphPresentationProviderWrapper;
 import org.eclipse.tracecompass.tmf.core.presentation.RGBAColor;
-import org.eclipse.tracecompass.tmf.ui.widgets.timegraph.ITimeGraphPresentationProvider;
 import org.eclipse.tracecompass.tmf.ui.widgets.timegraph.StateItem;
+import org.eclipse.tracecompass.tmf.ui.widgets.timegraph.dialogs.TimeGraphLegend;
 import org.eclipse.tracecompass.tmf.ui.widgets.timegraph.model.ITimeEventStyleStrings;
 
-import com.google.common.collect.Collections2;
-
 /**
- * Legend for the colors used in the time graph view
  *
- * @version 1.0
- * @author Alvaro Sanchez-Leon
- * @author Patrick Tasse
+ * Legend widget for the overlay.
+ *
+ * @author Guillaume Champagne
  */
-public class TimeGraphLegend extends TitleAreaDialog {
+public class OverlayLegend extends TimeGraphLegend {
 
     private static final ImageDescriptor RESET_IMAGE = Activator.getDefault().getImageDescripterFromPath(ITmfImageConstants.IMG_RESET_BUTTON);
     private final ITimeGraphStyleProvider fProvider;
-    private final LocalResourceManager fResourceManager = new LocalResourceManager(JFaceResources.getResources());
 
     /**
      * Open the time graph legend window
@@ -85,139 +63,25 @@ public class TimeGraphLegend extends TitleAreaDialog {
      *            The parent shell
      * @param provider
      *            The presentation provider
-     */
-    public static void open(Shell parent, ITimeGraphPresentationProvider provider) {
-        (new TimeGraphLegend(parent, provider)).open();
-    }
-
-    /**
-     * Open the time graph legend window
-     *
-     * @param parent
-     *            The parent shell
-     * @param provider
-     *            The style provider
      */
     public static void open(Shell parent, ITimeGraphStyleProvider provider) {
-        (new TimeGraphLegend(parent, provider)).open();
+        (new OverlayLegend(parent, provider)).open();
     }
 
     /**
-     * Standard constructor
+     * Constructor
      *
      * @param parent
-     *            The parent shell
+     *            the shell to draw on
      * @param provider
-     *            The presentation provider
+     *            the provider containing the states
      */
-    public TimeGraphLegend(Shell parent, ITimeGraphPresentationProvider provider) {
-        super(parent);
-        fProvider = new TimeGraphPresentationProviderWrapper(provider);
-        this.setShellStyle(getShellStyle() | SWT.RESIZE);
-    }
-
-    /**
-     * Standard constructor
-     *
-     * @param parent
-     *            The parent shell
-     * @param provider
-     *            The style provider
-     */
-    public TimeGraphLegend(Shell parent, ITimeGraphStyleProvider provider) {
-        super(parent);
+    public OverlayLegend(Shell parent, ITimeGraphStyleProvider provider) {
+        super(parent, provider);
         fProvider = provider;
-        this.setShellStyle(getShellStyle() | SWT.RESIZE);
-    }
-
-    /**
-     * Gets the Presentation Provider
-     *
-     * @return the presentation provider
-     * @since 3.3
-     */
-    protected final ITimeGraphPresentationProvider getPresentationProvider() {
-        /* FIXME: This should be deprecated if ITimeGraphStyleProvider becomes API */
-        if (fProvider instanceof TimeGraphPresentationProviderWrapper) {
-            return ((TimeGraphPresentationProviderWrapper)fProvider).getPresentationProvider();
-        }
-        return null;
     }
 
     @Override
-    protected Control createDialogArea(Composite parent) {
-        Composite dlgArea = (Composite) super.createDialogArea(parent);
-        Composite composite = new Composite(dlgArea, SWT.NONE);
-
-        GridLayout layout = new GridLayout();
-        composite.setLayout(layout);
-        GridData gd = new GridData(SWT.FILL, SWT.FILL, true, true);
-        composite.setLayoutData(gd);
-
-        addStateGroups(composite);
-
-        setTitle(Messages.TmfTimeLegend_LEGEND);
-        setDialogHelpAvailable(false);
-        setHelpAvailable(false);
-
-        // Set the minimum size to avoid 0 sized legends from user resize
-        dlgArea.getShell().setMinimumSize(150, 150);
-
-        composite.addDisposeListener((e) -> {
-            fResourceManager.dispose();
-        });
-        return composite;
-    }
-
-    /**
-     * Creates a states group
-     *
-     * @param composite
-     *            the parent composite
-     * @since 3.3
-     */
-    private void addStateGroups(Composite composite) {
-
-        StateItem[] stateTable = fProvider.getStateTable();
-        if (stateTable == null) {
-            return;
-        }
-        List<StateItem> stateItems = Arrays.asList(stateTable);
-        Collection<StateItem> linkStates = Collections2.filter(stateItems, TimeGraphLegend::isLinkState);
-        int numColumn = linkStates.isEmpty() ? 1 : 2;
-
-        ScrolledComposite sc = new ScrolledComposite(composite, SWT.V_SCROLL | SWT.H_SCROLL);
-        Composite innerComposite = new Composite(sc, SWT.NONE);
-
-        sc.setExpandHorizontal(true);
-        sc.setExpandVertical(true);
-
-        GridData gd = new GridData(SWT.FILL, SWT.FILL, true, true);
-
-        sc.setLayout(GridLayoutFactory.swtDefaults().margins(20, 0).create());
-        sc.setLayoutData(gd);
-
-        GridLayout gridLayout = GridLayoutFactory.swtDefaults().margins(0, 0).create();
-        gridLayout.numColumns = numColumn;
-        gridLayout.makeColumnsEqualWidth = false;
-        innerComposite.setLayout(gridLayout);
-        innerComposite.setLayoutData(gd);
-
-        sc.setContent(innerComposite);
-
-        createStatesGroup(innerComposite);
-        createLinkGroup(linkStates, innerComposite);
-
-        sc.setMinSize(innerComposite.computeSize(SWT.DEFAULT, SWT.DEFAULT));
-    }
-
-    /**
-     * Creates a states group
-     *
-     * @param composite
-     *            the parent composite
-     * @since 3.3
-     */
     protected void createStatesGroup(Composite composite) {
         Group gs = new Group(composite, SWT.NONE);
         String stateTypeName = fProvider.getStateTypeName();
@@ -243,69 +107,19 @@ public class TimeGraphLegend extends TitleAreaDialog {
         StateItem[] stateTable = fProvider.getStateTable();
         List<StateItem> stateItems = stateTable != null ? Arrays.asList(stateTable) : Collections.emptyList();
         stateItems.forEach(si -> {
-            if (!isLinkState(si)) {
-                new LegendEntry(gs, si);
-            }
+                new OverlayLegendEntry(gs, si);
         });
     }
 
-    private void createLinkGroup(Collection<StateItem> linkStates, Composite innerComposite) {
-        if (linkStates.isEmpty()) {
-            return;
-        }
-        Group gs = new Group(innerComposite, SWT.NONE);
-        gs.setText(fProvider.getLinkTypeName());
-
-        GridLayout layout = new GridLayout();
-        layout.marginWidth = 20;
-        layout.marginBottom = 10;
-        gs.setLayout(layout);
-
-        GridData gridData = new GridData();
-        gridData.verticalAlignment = SWT.TOP;
-        gs.setLayoutData(gridData);
-
-        // Go through all the defined pairs of state color and state name and
-        // display them.
-        linkStates.forEach(si -> new LegendEntry(gs, si));
-    }
-
     /**
-     * Test whether a state item is a link state or not
-     *
-     * @param si
-     *            The state item
-     * @return True if the state item is a link state, false otherwise
-     * @since 4.0
+     * Entries in the overlay legend widget
      */
-    protected static boolean isLinkState(StateItem si) {
-        Object itemType = si.getStyleMap().getOrDefault(ITimeEventStyleStrings.itemTypeProperty(), ITimeEventStyleStrings.stateType());
-        return itemType instanceof String && ((String) itemType).equals(ITimeEventStyleStrings.linkType());
-    }
+    protected class OverlayLegendEntry extends Composite {
 
-    @Override
-    protected void configureShell(Shell shell) {
-        super.configureShell(shell);
-        shell.setText(Messages.TmfTimeLegend_LEGEND);
-    }
-
-    @Override
-    protected void createButtonsForButtonBar(Composite parent) {
-        createButton(parent, IDialogConstants.OK_ID, IDialogConstants.OK_LABEL,
-                true);
-    }
-
-    /**
-     * Widget for a legend entry has a color chooser, a label, a width and a reset
-     * button
-     *
-     * @author Matthew Khouzam
-     * @since 3.3
-     */
-    protected class LegendEntry extends Composite {
         private final Swatch fBar;
         private final Scale fScale;
         private final Button fReset;
+        private final Button fActivate;
 
         /**
          * Constructor
@@ -315,15 +129,39 @@ public class TimeGraphLegend extends TitleAreaDialog {
          * @param si
          *            the state item
          */
-        public LegendEntry(Composite parent, StateItem si) {
+        public OverlayLegendEntry(Composite parent, StateItem si) {
             super(parent, SWT.NONE);
             String fillColorKey = TimeGraphStyleUtil.getPreferenceName(fProvider, si, ITimeEventStyleStrings.fillColor());
             String heightFactorKey = TimeGraphStyleUtil.getPreferenceName(fProvider, si, ITimeEventStyleStrings.heightFactor());
+            String activateOverlayKey = TimeGraphStyleUtil.getPreferenceName(fProvider, si, "activate"); //$NON-NLS-1$
             IPreferenceStore store = TimeGraphStyleUtil.getStore();
+            Boolean enableControls = store.getBoolean(activateOverlayKey);
             TimeGraphStyleUtil.loadValue(fProvider, si);
             String name = si.getStateString();
-            setLayout(GridLayoutFactory.swtDefaults().numColumns(4).create());
+            setLayout(GridLayoutFactory.swtDefaults().numColumns(5).create());
+
+            fActivate = new Button(this, SWT.CHECK);
+            fActivate.setSelection(enableControls);
+            fActivate.setLayoutData(GridDataFactory.swtDefaults().align(SWT.CENTER, SWT.CENTER).create());
+            fActivate.addSelectionListener(new SelectionListener() {
+
+                @Override
+                public void widgetSelected(SelectionEvent e) {
+                    Button btn = (Button) e.getSource();
+                    store.setValue(activateOverlayKey, btn.getSelection());
+                    fProvider.refresh();
+                }
+
+                @Override
+                public void widgetDefaultSelected(SelectionEvent e) {
+                    // TODO Auto-generated method stub
+
+                }
+
+            });
+
             fBar = new Swatch(this, si.getStateColor());
+            fBar.setEnabled(enableControls);
             fBar.setToolTipText(Messages.TimeGraphLegend_swatchClick);
             fBar.addMouseListener(new MouseAdapter() {
 
@@ -382,6 +220,7 @@ public class TimeGraphLegend extends TitleAreaDialog {
             label.setText(name);
             label.setLayoutData(GridDataFactory.fillDefaults().hint(160, SWT.DEFAULT).align(SWT.FILL, SWT.CENTER).grab(true, false).create());
             fScale = new Scale(this, SWT.NONE);
+            fScale.setEnabled(enableControls);
             fScale.setMaximum(100);
             fScale.setMinimum(1);
             fScale.setSelection((int) (100 * si.getStateHeightFactor()));
@@ -404,6 +243,7 @@ public class TimeGraphLegend extends TitleAreaDialog {
             });
             fScale.setLayoutData(GridDataFactory.swtDefaults().hint(120, SWT.DEFAULT).create());
             fReset = new Button(this, SWT.FLAT);
+            fReset.setEnabled(enableControls);
             fReset.addSelectionListener(new SelectionListener() {
 
                 @Override
@@ -431,52 +271,6 @@ public class TimeGraphLegend extends TitleAreaDialog {
             }
         }
 
-        @Override
-        public void dispose() {
-            fReset.getImage().dispose();
-            super.dispose();
-        }
     }
 
-    protected class Swatch extends Canvas {
-        private Color fColor;
-
-        public Swatch(Composite parent, RGB rgb) {
-            super(parent, SWT.FLAT);
-
-            setColor(fResourceManager.createColor(rgb));
-            setForeground(getColor());
-            addListener(SWT.Paint, new Listener() {
-                @Override
-                public void handleEvent(Event event) {
-                    draw(event.gc);
-                }
-            });
-        }
-
-        public void setColor(RGB rgb) {
-            if (rgb != null) {
-                fColor = fResourceManager.createColor(rgb);
-                setForeground(fColor);
-                redraw();
-            }
-        }
-
-        private void draw(GC gc) {
-            Rectangle r = getClientArea();
-            gc.setBackground(getColor());
-            gc.fillRectangle(r);
-            gc.setForeground(Display.getDefault().getSystemColor(SWT.COLOR_BLACK));
-            gc.setLineWidth(2);
-            gc.drawRectangle(1, 1, r.width - 2, r.height - 2);
-        }
-
-        public Color getColor() {
-            return fColor;
-        }
-
-        public void setColor(Color color) {
-            fColor = color;
-        }
-    }
 }
