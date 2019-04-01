@@ -1,5 +1,7 @@
 package org.eclipse.tracecompass.internal.tmf.ui.widgets.timegraph;
 
+import java.util.Map;
+
 import org.eclipse.tracecompass.tmf.ui.widgets.timegraph.ITimeGraphPresentationProvider;
 import org.eclipse.tracecompass.tmf.ui.widgets.timegraph.StateItem;
 import org.eclipse.tracecompass.tmf.ui.widgets.timegraph.model.ITimeEvent;
@@ -38,13 +40,13 @@ public class TimeGraphPresentationProviderWrapper implements ITimeGraphStyleProv
     }
 
     @Override
-    public int getStateTableIndex(ITimeEvent event) {
-        return fProvider.getStateTableIndex(event);
+    public String getStateTypeName() {
+        return fProvider.getStateTypeName();
     }
 
     @Override
-    public String getStateTypeName() {
-        return fProvider.getStateTypeName();
+    public Map<String, Object> getEventStyle(ITimeEvent event) {
+        return fProvider.getEventStyle(event);
     }
 
 }

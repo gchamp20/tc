@@ -65,15 +65,15 @@ public interface ITimeGraphOverlay {
      *            The start time of the request
      * @param zoomEndTime
      *            The end time of the request
-     * @param rgba
-     *            The RGBA color associated with this overlay
+     * @param color
+     *            The color associated with this overlay
      * @param resolution
      *            The resolution of the request
      * @param monitor
      *            The progress monitor
      * @return The markers
      */
-    Collection<IMarkerEvent> getMarkers(Collection<TimeGraphEntry> entries, long zoomStartTime, long zoomEndTime, RGBA rgba, long resolution, IProgressMonitor monitor);
+    Collection<IMarkerEvent> getMarkers(Collection<TimeGraphEntry> entries, long zoomStartTime, long zoomEndTime, RGBA color, long resolution, IProgressMonitor monitor);
 
     /**
      * Get the name of this overlay

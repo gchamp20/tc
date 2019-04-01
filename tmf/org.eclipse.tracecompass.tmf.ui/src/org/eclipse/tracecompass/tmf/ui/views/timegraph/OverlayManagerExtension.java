@@ -13,6 +13,7 @@ import org.eclipse.jdt.annotation.NonNull;
 import org.eclipse.jdt.annotation.NonNullByDefault;
 import org.eclipse.tracecompass.internal.tmf.ui.views.timegraph.ITimeGraphViewMetadataProvider;
 import org.eclipse.tracecompass.internal.tmf.ui.views.timegraph.OverlayManager;
+import org.eclipse.tracecompass.internal.tmf.ui.views.timegraph.OverlayStyleProvider;
 
 /**
  * Manages the overlays available for the time graph
@@ -33,9 +34,11 @@ class OverlayManagerExtension extends OverlayManager {
      *            The view this manager is for
      * @param metadataBuilder
      *            Provider of metadata about the view
+     * @param styleProvider
+     *              The style provider for the overlays.
      */
-    public OverlayManagerExtension(AbstractTimeGraphView view, ITimeGraphViewMetadataProvider metadataBuilder) {
-        super(view, metadataBuilder);
+    public OverlayManagerExtension(AbstractTimeGraphView view, ITimeGraphViewMetadataProvider metadataBuilder, OverlayStyleProvider styleProvider) {
+        super(view, metadataBuilder, styleProvider);
     }
 
     @Override

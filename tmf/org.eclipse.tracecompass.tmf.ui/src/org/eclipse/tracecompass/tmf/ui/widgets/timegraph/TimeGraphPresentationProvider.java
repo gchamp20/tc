@@ -15,7 +15,6 @@
 package org.eclipse.tracecompass.tmf.ui.widgets.timegraph;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -23,11 +22,7 @@ import org.eclipse.swt.graphics.GC;
 import org.eclipse.swt.graphics.Image;
 import org.eclipse.swt.graphics.Rectangle;
 import org.eclipse.tracecompass.internal.tmf.ui.Messages;
-import org.eclipse.tracecompass.internal.tmf.ui.views.timegraph.ClusterMarkerEvent;
-import org.eclipse.tracecompass.tmf.core.presentation.IYAppearance;
-import org.eclipse.tracecompass.tmf.ui.colors.RGBAUtil;
 import org.eclipse.tracecompass.tmf.ui.widgets.timegraph.model.ITimeEvent;
-import org.eclipse.tracecompass.tmf.ui.widgets.timegraph.model.ITimeEventStyleStrings;
 import org.eclipse.tracecompass.tmf.ui.widgets.timegraph.model.ITimeGraphEntry;
 import org.eclipse.tracecompass.tmf.ui.widgets.timegraph.widgets.ITmfTimeGraphDrawingHelper;
 
@@ -177,17 +172,4 @@ public class TimeGraphPresentationProvider implements ITimeGraphPresentationProv
             listener.colorSettingsChanged(getStateTable());
         }
     }
-
-    @Override
-    public Map<String, Object> getSpecificEventStyle(ITimeEvent event) {
-        Map<String, Object> styleMap = new HashMap<>(ITimeGraphPresentationProvider2.super.getSpecificEventStyle(event));
-        if (event instanceof ClusterMarkerEvent) {
-            ClusterMarkerEvent clusterEvent = (ClusterMarkerEvent)event;
-            styleMap.put(ITimeEventStyleStrings.symbolStyle(), IYAppearance.SymbolStyle.DIAMOND);
-            styleMap.put(ITimeEventStyleStrings.fillColor(), RGBAUtil.fromRGBA(clusterEvent.getColor()) | 0xFF);
-            styleMap.put(ITimeEventStyleStrings.heightFactor(), 0.25f); // Should probably be user configurable
-        }
-        return styleMap;
-    }
-
 }

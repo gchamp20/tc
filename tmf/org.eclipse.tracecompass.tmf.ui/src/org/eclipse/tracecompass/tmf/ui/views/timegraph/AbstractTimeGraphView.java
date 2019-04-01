@@ -86,9 +86,11 @@ import org.eclipse.swt.events.PaintEvent;
 import org.eclipse.swt.events.PaintListener;
 import org.eclipse.swt.events.SelectionAdapter;
 import org.eclipse.swt.events.SelectionEvent;
+import org.eclipse.swt.graphics.GC;
 import org.eclipse.swt.graphics.Image;
 import org.eclipse.swt.graphics.Point;
 import org.eclipse.swt.graphics.RGBA;
+import org.eclipse.swt.graphics.Rectangle;
 import org.eclipse.swt.widgets.Composite;
 import org.eclipse.swt.widgets.Control;
 import org.eclipse.swt.widgets.Display;
@@ -112,6 +114,7 @@ import org.eclipse.tracecompass.internal.tmf.ui.markers.MarkerUtils;
 import org.eclipse.tracecompass.internal.tmf.ui.util.TimeGraphStyleUtil;
 import org.eclipse.tracecompass.internal.tmf.ui.views.timegraph.ITimeGraphViewMetadataBuilder;
 import org.eclipse.tracecompass.internal.tmf.ui.views.timegraph.ITimeGraphViewMetadataProvider;
+import org.eclipse.tracecompass.internal.tmf.ui.views.timegraph.OverlayStyleProvider;
 import org.eclipse.tracecompass.internal.tmf.ui.views.timegraph.TimeEventFilterDialog;
 import org.eclipse.tracecompass.internal.tmf.ui.views.timegraph.TimeGraphOverlayUtils;
 import org.eclipse.tracecompass.tmf.core.model.IFilterableDataModel;
@@ -144,12 +147,14 @@ import org.eclipse.tracecompass.tmf.ui.views.SaveImageUtil;
 import org.eclipse.tracecompass.tmf.ui.views.TmfView;
 import org.eclipse.tracecompass.tmf.ui.views.timegraph.BaseDataProviderTimeGraphView.TraceEntry;
 import org.eclipse.tracecompass.tmf.ui.widgets.timegraph.ITimeGraphBookmarkListener;
+import org.eclipse.tracecompass.tmf.ui.widgets.timegraph.ITimeGraphColorListener;
 import org.eclipse.tracecompass.tmf.ui.widgets.timegraph.ITimeGraphContentProvider;
 import org.eclipse.tracecompass.tmf.ui.widgets.timegraph.ITimeGraphPresentationProvider;
 import org.eclipse.tracecompass.tmf.ui.widgets.timegraph.ITimeGraphPresentationProvider2;
 import org.eclipse.tracecompass.tmf.ui.widgets.timegraph.ITimeGraphRangeListener;
 import org.eclipse.tracecompass.tmf.ui.widgets.timegraph.ITimeGraphSelectionListener;
 import org.eclipse.tracecompass.tmf.ui.widgets.timegraph.ITimeGraphTimeListener;
+import org.eclipse.tracecompass.tmf.ui.widgets.timegraph.StateItem;
 import org.eclipse.tracecompass.tmf.ui.widgets.timegraph.TimeGraphBookmarkEvent;
 import org.eclipse.tracecompass.tmf.ui.widgets.timegraph.TimeGraphContentProvider;
 import org.eclipse.tracecompass.tmf.ui.widgets.timegraph.TimeGraphPresentationProvider;
@@ -166,6 +171,7 @@ import org.eclipse.tracecompass.tmf.ui.widgets.timegraph.model.MarkerEvent;
 import org.eclipse.tracecompass.tmf.ui.widgets.timegraph.model.NullTimeEvent;
 import org.eclipse.tracecompass.tmf.ui.widgets.timegraph.model.TimeGraphEntry;
 import org.eclipse.tracecompass.tmf.ui.widgets.timegraph.model.TimeGraphEntry.Sampling;
+import org.eclipse.tracecompass.tmf.ui.widgets.timegraph.widgets.ITmfTimeGraphDrawingHelper;
 import org.eclipse.tracecompass.tmf.ui.widgets.timegraph.widgets.TimeGraphControl;
 import org.eclipse.tracecompass.tmf.ui.widgets.timegraph.widgets.Utils;
 import org.eclipse.tracecompass.tmf.ui.widgets.timegraph.widgets.Utils.TimeFormat;
@@ -381,6 +387,8 @@ public abstract class AbstractTimeGraphView extends TmfView implements ITmfTimeA
     private Collection<@NonNull String> fGlobalFilter = null;
 
     private OverlayManagerExtension fOverlayManager;
+
+    private OverlayStyleProvider fOverlayStyleProvider;
 
     /**
      * Provider for metadata about this view.
@@ -875,7 +883,8 @@ public abstract class AbstractTimeGraphView extends TmfView implements ITmfTimeA
      */
     public AbstractTimeGraphView(String id, TimeGraphPresentationProvider pres) {
         super(id);
-        fPresentation = pres;
+        fOverlayStyleProvider = new OverlayStyleProvider();
+        fPresentation = new TimeGraphViewPresentationProviderComposite(pres, fOverlayStyleProvider);
         fDisplayWidth = Display.getDefault().getBounds().width;
         fFindTarget = new FindTarget();
     }
@@ -1451,9 +1460,11 @@ public abstract class AbstractTimeGraphView extends TmfView implements ITmfTimeA
         });
 
         fMetadataBuilder = new TimeGraphViewMetadataProvider();
-        fOverlayManager = new OverlayManagerExtension(this, (ITimeGraphViewMetadataProvider) fMetadataBuilder);
-        if (trace != null) {
-            fOverlayManager.refreshOverlayList();
+        if (fOverlayStyleProvider != null) {
+            fOverlayManager = new OverlayManagerExtension(this, (ITimeGraphViewMetadataProvider) fMetadataBuilder, fOverlayStyleProvider);
+            if (trace != null) {
+                fOverlayManager.refreshOverlayList();
+            }
         }
     }
 
@@ -2928,7 +2939,7 @@ public abstract class AbstractTimeGraphView extends TmfView implements ITmfTimeA
      *
      * @author Guillaume Champagne
      */
-    private class TimeGraphViewMetadataProvider implements ITimeGraphViewMetadataProvider, ITimeGraphViewMetadataBuilder {
+    private static class TimeGraphViewMetadataProvider implements ITimeGraphViewMetadataProvider, ITimeGraphViewMetadataBuilder {
 
         Set<String> fEntriesMetadata;
 
@@ -2951,5 +2962,126 @@ public abstract class AbstractTimeGraphView extends TmfView implements ITmfTimeA
             return fEntriesMetadata == null ? Collections.emptySet() : Collections.unmodifiableSet(fEntriesMetadata);
         }
 
+    }
+
+    /**
+     * Class that wraps the PresentationProvider from the view and the overlay presentation provider
+     * @author Guillaume Champagne
+     */
+    private static class TimeGraphViewPresentationProviderComposite extends TimeGraphPresentationProvider {
+        ITimeGraphPresentationProvider fViewPresentationProvider;
+        OverlayStyleProvider fOverlayStyleProvider;
+
+        public TimeGraphViewPresentationProviderComposite(ITimeGraphPresentationProvider viewProvider, OverlayStyleProvider styleProvider) {
+            fViewPresentationProvider = viewProvider;
+            fOverlayStyleProvider = styleProvider;
+        }
+
+        @Override
+        public Map<String, Object> getEventStyle(ITimeEvent event) {
+            if (event instanceof MarkerEvent ) {
+                Map<String, Object> styleMap = new HashMap<>();
+                styleMap.putAll(fViewPresentationProvider.getEventStyle(event));
+                styleMap.putAll(fOverlayStyleProvider.getEventStyle(event));
+                return styleMap;
+            }
+            return fViewPresentationProvider.getEventStyle(event);
+        }
+
+        @Override
+        public String getStateTypeName() {
+            return fViewPresentationProvider.getStateTypeName();
+        }
+
+        @Override
+        public String getStateTypeName(ITimeGraphEntry entry) {
+            return fViewPresentationProvider.getStateTypeName(entry);
+        }
+
+        @Override
+        public StateItem[] getStateTable() {
+            return fViewPresentationProvider.getStateTable();
+        }
+
+        @Override
+        public int getStateTableIndex(ITimeEvent event) {
+            return fViewPresentationProvider.getStateTableIndex(event);
+        }
+
+        @Override
+        public ITmfTimeGraphDrawingHelper getDrawingHelper() {
+            return fViewPresentationProvider.getDrawingHelper();
+        }
+
+        @Override
+        public void setDrawingHelper(ITmfTimeGraphDrawingHelper helper) {
+            fViewPresentationProvider.setDrawingHelper(helper);
+        }
+
+        @Override
+        public void postDrawControl(Rectangle bounds, GC gc) {
+            fViewPresentationProvider.postDrawControl(bounds, gc);
+        }
+
+        @Override
+        public void postDrawEntry(ITimeGraphEntry entry, Rectangle bounds, GC gc) {
+            fViewPresentationProvider.postDrawEntry(entry, bounds, gc);
+        }
+
+        @Override
+        public void postDrawEvent(ITimeEvent event, Rectangle bounds, GC gc) {
+            fViewPresentationProvider.postDrawEvent(event, bounds, gc);
+        }
+
+        @Override
+        public int getItemHeight(ITimeGraphEntry entry) {
+            return fViewPresentationProvider.getItemHeight(entry);
+        }
+
+        @Override
+        public Image getItemImage(ITimeGraphEntry entry) {
+            return fViewPresentationProvider.getItemImage(entry);
+        }
+
+        @Override
+        public String getEventName(ITimeEvent event) {
+            return fViewPresentationProvider.getEventName(event);
+        }
+
+        @Override
+        public Map<String, String> getEventHoverToolTipInfo(ITimeEvent event) {
+            return fViewPresentationProvider.getEventHoverToolTipInfo(event);
+        }
+
+        @Override
+        public Map<String, String> getEventHoverToolTipInfo(ITimeEvent event, long hoverTime) {
+            return fViewPresentationProvider.getEventHoverToolTipInfo(event, hoverTime);
+        }
+
+        @Override
+        public boolean displayTimesInTooltip() {
+            return fViewPresentationProvider.displayTimesInTooltip();
+        }
+
+        @Override
+        public void addColorListener(ITimeGraphColorListener listener) {
+            fViewPresentationProvider.addColorListener(listener);
+        }
+
+        @Override
+        public void removeColorListener(ITimeGraphColorListener listener) {
+            fViewPresentationProvider.removeColorListener(listener);
+        }
+
+        @Override
+        public void refresh() {
+            fViewPresentationProvider.refresh();
+            fOverlayStyleProvider.refresh();
+        }
+
+        @Override
+        public Map<String, Object> getSpecificEventStyle(ITimeEvent event) {
+            return fViewPresentationProvider.getSpecificEventStyle(event);
+        }
     }
 }

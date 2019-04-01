@@ -86,7 +86,7 @@ public class OverlayLegend extends TimeGraphLegend {
         Group gs = new Group(composite, SWT.NONE);
         String stateTypeName = fProvider.getStateTypeName();
         StringBuilder buffer = new StringBuilder();
-        if (!stateTypeName.isEmpty()) {
+        if (stateTypeName != null && !stateTypeName.isEmpty()) {
             buffer.append(stateTypeName);
             buffer.append(" "); //$NON-NLS-1$
         }
@@ -106,7 +106,9 @@ public class OverlayLegend extends TimeGraphLegend {
         // display them.
         StateItem[] stateTable = fProvider.getStateTable();
         List<StateItem> stateItems = stateTable != null ? Arrays.asList(stateTable) : Collections.emptyList();
-        stateItems.forEach(si -> {
+        stateItems.stream()
+        .map(x -> (OverlayStateItem)x)
+        .forEach(si -> {
                 new OverlayLegendEntry(gs, si);
         });
     }
@@ -129,7 +131,7 @@ public class OverlayLegend extends TimeGraphLegend {
          * @param si
          *            the state item
          */
-        public OverlayLegendEntry(Composite parent, StateItem si) {
+        public OverlayLegendEntry(Composite parent, OverlayStateItem si) {
             super(parent, SWT.NONE);
             String fillColorKey = TimeGraphStyleUtil.getPreferenceName(fProvider, si, ITimeEventStyleStrings.fillColor());
             String heightFactorKey = TimeGraphStyleUtil.getPreferenceName(fProvider, si, ITimeEventStyleStrings.heightFactor());
@@ -148,14 +150,18 @@ public class OverlayLegend extends TimeGraphLegend {
                 @Override
                 public void widgetSelected(SelectionEvent e) {
                     Button btn = (Button) e.getSource();
-                    store.setValue(activateOverlayKey, btn.getSelection());
+                    Boolean enabled = btn.getSelection();
+                    store.setValue(activateOverlayKey, enabled);
+                    fBar.setEnabled(enabled);
+                    fScale.setEnabled(enabled);
+                    fReset.setEnabled(enabled);
+                    si.setActive(btn.getSelection());
                     fProvider.refresh();
                 }
 
                 @Override
                 public void widgetDefaultSelected(SelectionEvent e) {
                     // TODO Auto-generated method stub
-
                 }
 
             });
@@ -249,7 +255,8 @@ public class OverlayLegend extends TimeGraphLegend {
                 @Override
                 public void widgetSelected(SelectionEvent e) {
                     si.reset();
-                    store.setToDefault(heightFactorKey);
+                    store.setValue(heightFactorKey, OverlayStateItem.DEFAULT_HEIGHT);
+                    si.getStyleMap().put(ITimeEventStyleStrings.heightFactor(), OverlayStateItem.DEFAULT_HEIGHT);
                     store.setToDefault(fillColorKey);
                     fBar.setColor(si.getStateColor());
                     fScale.setSelection((int) (100 * si.getStateHeightFactor()));
