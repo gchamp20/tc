@@ -2242,10 +2242,12 @@ public class TimeGraphControl extends TimeGraphBaseControl
         gc.fillRectangle(rect);
         gc.setAlpha(OPAQUE);
         if (label != null && marker.getEntry() != null) {
-            int pos = (rect.width - gc.textExtent(label).x) / 2;
+            Point extent = gc.textExtent(label);
+            int posX = (rect.width - extent.x) / 2;
+            int posY = (rect.height - extent.y) / 2;
             label = label.substring(0, Math.min(label.indexOf('\n') != -1 ? label.indexOf('\n') : label.length(), MAX_LABEL_LENGTH));
             gc.setForeground(color);
-            Utils.drawText(gc, label, rect.x + pos, rect.y, true);
+            Utils.drawText(gc, label, rect.x + posX, rect.y + posY, true);
         }
     }
 

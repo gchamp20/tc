@@ -51,7 +51,7 @@ import com.google.common.collect.Multimap;
 public class OverlayManager {
 
     private static final RGB DEFAULT_RGB = new RGB(80, 120, 190);
-    private static final RGBA DEFAULT_RGBA = new RGBA(80, 120, 190, 50);
+    private static final RGBA DEFAULT_RGBA = new RGBA(80, 120, 190, 35);
     private static final List<ITimeGraphOverlayProvider> TG_OVERLAYS = new ArrayList<>();
     private static final ImageDescriptor IMG_OVERLAY = Activator.getDefault().getImageDescripterFromPath(ITmfImageConstants.IMG_OVERLAY);
 
@@ -88,7 +88,7 @@ public class OverlayManager {
 
         public void setRGB(RGB color) {
             fRGB = color;
-            fRGBA = new RGBA(color.red, color.green, color.blue, 50);
+            fRGBA = new RGBA(color.red, color.green, color.blue, 35);
         }
 
         public RGBA getRGBA() {
