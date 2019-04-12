@@ -2224,14 +2224,28 @@ public class TimeGraphControl extends TimeGraphBaseControl
     private void oldDrawMarker(IMarkerEvent marker, GC gc, Rectangle rect) {
         Color color = getColorScheme().getColor(marker.getColor());
         gc.setBackground(color);
-        gc.setAlpha(color.getAlpha());
-        gc.fillRectangle(rect);
-        gc.setAlpha(OPAQUE);
+
         String label = marker.getLabel();
         if (label != null && marker.getEntry() != null) {
             label = label.substring(0, Math.min(label.indexOf('\n') != -1 ? label.indexOf('\n') : label.length(), MAX_LABEL_LENGTH));
+
+            int pos = (rect.width - gc.textExtent(label).x) / 2;
+
+            if (pos < 0) {
+                int lol = (int) Math.ceil(rect.height * 0.25f);
+                SymbolHelper.drawDiamond(gc, color, lol, rect.x + (rect.width / 2), rect.y + rect.height / 2);
+                return;
+            }
+        }
+
+        gc.setAlpha(color.getAlpha());
+        gc.fillRectangle(rect);
+        gc.setAlpha(OPAQUE);
+        if (label != null && marker.getEntry() != null) {
+            int pos = (rect.width - gc.textExtent(label).x) / 2;
+            label = label.substring(0, Math.min(label.indexOf('\n') != -1 ? label.indexOf('\n') : label.length(), MAX_LABEL_LENGTH));
             gc.setForeground(color);
-            Utils.drawText(gc, label, rect.x - gc.textExtent(label).x, rect.y, true);
+            Utils.drawText(gc, label, rect.x + pos, rect.y, true);
         }
     }
 
